@@ -22,6 +22,10 @@ class Question extends HiveObject {
   @HiveField(5)
   DateTime createdAt;
 
+  @HiveField(6)
+  String? imagePath; // 👈 nueva propiedad opcional
+
+
   Question({
     required this.id,
     required this.questionText,
@@ -29,5 +33,6 @@ class Question extends HiveObject {
     required this.correctAnswerIndex,
     required this.category,
     required this.createdAt,
+    this.imagePath,
   });
 }

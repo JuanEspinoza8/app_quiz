@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:quiz_daily/models/question.dart';
 import 'package:quiz_daily/screens/add_question_screen.dart';
-import 'package:quiz_daily/screens/questions_list_screen.dart'; // 👈 este import es necesario
+import 'package:quiz_daily/screens/questions_list_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  Hive.registerAdapter(QuestionAdapter());
+  await Hive.openBox<Question>('questionsBox'); // 👈 abrir antes de runApp
   runApp(const QuizDailyApp());
 }
 
@@ -20,7 +26,7 @@ class QuizDailyApp extends StatelessWidget {
       ),
       home: const PlaceholderScreen(),
       routes: {
-        '/questions': (context) => const QuestionsListScreen(), //
+        '/questions': (context) => const QuestionsListScreen(),
       },
     );
   }
@@ -52,7 +58,7 @@ class PlaceholderScreen extends StatelessWidget {
               icon: const Icon(Icons.list),
               label: const Text('Ver preguntas'),
               onPressed: () {
-                Navigator.pushNamed(context, '/questions'); // 👈 usa la ruta declarada arriba
+                Navigator.pushNamed(context, '/questions');
               },
             ),
           ],

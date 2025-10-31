@@ -23,13 +23,14 @@ class QuestionAdapter extends TypeAdapter<Question> {
       correctAnswerIndex: fields[3] as int,
       category: fields[4] as String,
       createdAt: fields[5] as DateTime,
+      imagePath: fields[6] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Question obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class QuestionAdapter extends TypeAdapter<Question> {
       ..writeByte(4)
       ..write(obj.category)
       ..writeByte(5)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(6)
+      ..write(obj.imagePath);
   }
 
   @override
