@@ -5,23 +5,29 @@ part 'user_progress.g.dart';
 @HiveType(typeId: 1)
 class UserProgress extends HiveObject {
   @HiveField(0)
-  int dailyGoal; // meta diaria de preguntas
+  int dailyGoal;
 
   @HiveField(1)
-  int answeredToday; // cuántas respondió hoy
+  int answeredToday;
 
   @HiveField(2)
-  int streak; // días consecutivos con meta cumplida
+  int streak;
 
   @HiveField(3)
-  DateTime lastPlayedDate; // última fecha en que jugó
+  DateTime lastPlayedDate;
 
-  // 👇 NUEVOS CAMPOS
   @HiveField(4)
-  String? targetCategory; // Categoría que quiere estudiar
+  String? targetCategory;
 
   @HiveField(5)
-  DateTime? targetDate;   // Fecha límite (parcial)
+  DateTime? targetDate;
+
+  // 👇 ESTOS SON LOS CAMPOS QUE FALTABAN
+  @HiveField(6, defaultValue: 18)
+  int notificationHour;
+
+  @HiveField(7, defaultValue: 0)
+  int notificationMinute;
 
   UserProgress({
     required this.dailyGoal,
@@ -30,5 +36,7 @@ class UserProgress extends HiveObject {
     required this.lastPlayedDate,
     this.targetCategory,
     this.targetDate,
+    this.notificationHour = 18, // Valor por defecto (6 PM)
+    this.notificationMinute = 0,
   });
 }

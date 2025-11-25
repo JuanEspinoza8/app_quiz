@@ -33,7 +33,8 @@ class GeminiService {
     // El prompt base
     final fullPrompt = '''
       Actúa como un profesor experto creando un examen.
-      Genera 5 preguntas de opción múltiple NUEVAS basadas en el material proporcionado (Texto o Archivo adjunto).
+      Genera 5 preguntas de opción múltiple NUEVAS basadas en el material proporcionado (Texto o Archivo adjunto)
+      pero en ningun momento hacer mencion al mismo, ademas las opciones incorrectas no deben ser absurdas, deben parecer posibles pero ser erroneas.
       
       REGLAS OBLIGATORIAS:
       1. La categoría de TODAS debe ser: "$userCategory".

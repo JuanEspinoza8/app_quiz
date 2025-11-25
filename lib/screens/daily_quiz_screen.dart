@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
+import 'package:google_fonts/google_fonts.dart'; // 👈 Fuente
 import '../models/question.dart';
 import '../services/progress_service.dart';
 
@@ -28,7 +30,6 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     _loadSmartQuestion();
   }
 
-  // 🧠 ALGORITMO DE REPASO INTELIGENTE + MODO EXAMEN
   void _loadSmartQuestion() {
     if (_box.isEmpty) return;
 
@@ -36,14 +37,14 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     List<Question> candidates = _box.values.toList();
     String? currentModeMsg;
 
-    // 1. Filtrado por Modo Examen (si existe meta y fecha activa)
+    // Lógica de Modo Examen
     if (progress.targetCategory != null && progress.targetDate != null) {
       final now = DateTime.now();
       if (progress.targetDate!.isAfter(now.subtract(const Duration(days: 1)))) {
         final filtered = candidates.where((q) => q.category == progress.targetCategory).toList();
         if (filtered.isNotEmpty) {
           candidates = filtered;
-          currentModeMsg = "📚 Estudiando: ${progress.targetCategory}";
+          currentModeMsg = "📚 Modo Examen: ${progress.targetCategory}";
         }
       }
     }
@@ -53,16 +54,12 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       return;
     }
 
-    // 2. Selección Ponderada (Weighted Random)
-    // Las preguntas con más errores tienen más peso (probabilidad) de salir
+    // Selección Ponderada
     final List<Question> weightedList = [];
     for (var q in candidates) {
       int weight = 1 + (q.errorCount * 2);
       if (weight > 10) weight = 10;
-
-      for (int i = 0; i < weight; i++) {
-        weightedList.add(q);
-      }
+      for (int i = 0; i < weight; i++) weightedList.add(q);
     }
 
     final rand = Random();
@@ -85,36 +82,43 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     final isCorrect = index == _currentQuestion!.correctAnswerIndex;
     final q = _currentQuestion!;
 
-    // 📊 Actualizamos estadísticas de la pregunta individual
+    if (isCorrect) {
+      HapticFeedback.lightImpact();
+    } else {
+      HapticFeedback.vibrate();
+    }
+
     q.totalAttempts++;
     if (!isCorrect) {
-      q.errorCount++; // ¡Aumenta probabilidad de aparecer mañana!
+      q.errorCount++;
     } else {
       if (q.errorCount > 0) q.errorCount--;
     }
     q.save();
 
-    // Feedback visual
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(isCorrect ? '✅ ¡Correcto!' : '❌ Incorrecto'),
-      backgroundColor: isCorrect ? Colors.green : Colors.red,
-      duration: const Duration(milliseconds: 500),
-    ));
-
-    // 👇 CAMBIO CLAVE AQUÍ: Pasamos si acertó o no para el historial
     _progressService.incrementProgress(isCorrect);
 
-    // 💡 MOSTRAR EXPLICACIÓN (Si existe)
+    // Feedback visual (Snackbar flotante)
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(isCorrect ? '✨ ¡Correcto! Sigue así' : '❌ Incorrecto, repasaremos esto'),
+      backgroundColor: isCorrect ? const Color(0xFF4ECDC4) : const Color(0xFFFF6584),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(milliseconds: 800),
+    ));
+
     if (q.explanation != null && q.explanation!.isNotEmpty) {
       await showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(isCorrect ? "Muy bien 🤓" : "Ups, casi... 😅"),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(isCorrect ? "¡Bien hecho!" : "Ojo al dato 💡"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(isCorrect ? "Así es:" : "La respuesta correcta era esa porque:"),
+              Text(isCorrect ? "Sabías que..." : "La correcta era esa porque:"),
               const SizedBox(height: 8),
               Text(q.explanation!, style: const TextStyle(fontSize: 16)),
             ],
@@ -122,13 +126,12 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Entendido"),
+              child: const Text("Continuar", style: TextStyle(fontWeight: FontWeight.bold)),
             )
           ],
         ),
       );
     } else {
-      // Si no hay explicación, esperamos un segundo nomás
       await Future.delayed(const Duration(seconds: 1));
     }
 
@@ -137,29 +140,45 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_box.isEmpty) return const Scaffold(body: Center(child: Text('No hay preguntas cargadas')));
-    if (_currentQuestion == null) return const Scaffold(body: Center(child: Text("Error cargando pregunta")));
+    if (_box.isEmpty) return const Scaffold(body: Center(child: Text('Agrega preguntas para empezar ✍️')));
+    if (_currentQuestion == null) return const Scaffold(body: Center(child: Text("¡No hay preguntas disponibles!")));
 
     final q = _currentQuestion!;
     final p = _progressService.progress;
 
-    // Vista de meta completada
+    // Meta completada
     if (p.answeredToday >= p.dailyGoal) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Quiz Diario')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('🎉 ¡Meta diaria completada!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Text(
-                'Volvé mañana para seguir tu racha 🔥\nRacha actual: ${p.streak}',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text("Volver al menú"))
-            ],
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.emoji_events_rounded, size: 100, color: Colors.white),
+                const SizedBox(height: 20),
+                Text('¡Meta diaria cumplida!', style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 10),
+                Text('Racha actual: ${p.streak} días 🔥', style: const TextStyle(color: Colors.white70, fontSize: 18)),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF6C63FF),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Volver al Inicio"),
+                )
+              ],
+            ),
           ),
         ),
       );
@@ -167,44 +186,139 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quiz Diario'),
+        title: Text(_modeMessage ?? "Quiz Diario", style: const TextStyle(fontSize: 18)),
+        centerTitle: true,
         actions: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Center(
-              child: Text('${p.answeredToday}/${p.dailyGoal}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
+            child: Text('${p.answeredToday}/${p.dailyGoal}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6C63FF))),
           )
         ],
-        bottom: _modeMessage != null ? PreferredSize(preferredSize: const Size.fromHeight(20), child: Text(_modeMessage!, style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold), textAlign: TextAlign.center)) : null,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (q.imagePath != null)
-              Image.file(File(q.imagePath!), height: 200, fit: BoxFit.cover),
-            const SizedBox(height: 16),
-            Text(q.questionText, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            ...List.generate(q.options.length, (i) {
-              final isCorrect = i == q.correctAnswerIndex;
-              final isSelected = i == _selectedIndex;
-              Color? color;
-              if (_answered) {
-                if (isCorrect) color = Colors.green.shade200;
-                else if (isSelected) color = Colors.red.shade200;
-              }
-              return Card(
-                color: color,
-                child: ListTile(
-                  title: Text(q.options[i]),
-                  onTap: _answered ? null : () => _checkAnswer(i),
-                ),
-              );
-            })
-          ],
-        ),
+      body: Column(
+        children: [
+          // Barra de progreso lineal superior
+          LinearProgressIndicator(
+            value: p.answeredToday / p.dailyGoal,
+            backgroundColor: Colors.grey.shade200,
+            color: const Color(0xFF4ECDC4),
+            minHeight: 6,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Tarjeta de la Pregunta
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                    ),
+                    child: Column(
+                      children: [
+                        if (q.imagePath != null)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.file(File(q.imagePath!), height: 180, width: double.infinity, fit: BoxFit.cover),
+                          ),
+                        if (q.imagePath != null) const SizedBox(height: 20),
+                        Text(
+                          q.questionText,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+                          child: Text(q.category, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Opciones de Respuesta
+                  ...List.generate(q.options.length, (i) {
+                    final isCorrect = i == q.correctAnswerIndex;
+                    final isSelected = i == _selectedIndex;
+
+                    Color bgColor = Colors.white;
+                    Color borderColor = Colors.transparent;
+                    Color textColor = Colors.black87;
+
+                    if (_answered) {
+                      if (isCorrect) {
+                        bgColor = const Color(0xFF4ECDC4).withOpacity(0.2); // Verde suave
+                        borderColor = const Color(0xFF4ECDC4);
+                        textColor = const Color(0xFF1A535C);
+                      } else if (isSelected) {
+                        bgColor = const Color(0xFFFF6584).withOpacity(0.2); // Rojo suave
+                        borderColor = const Color(0xFFFF6584);
+                        textColor = const Color(0xFFA3001B);
+                      } else {
+                        bgColor = Colors.grey.shade50;
+                        textColor = Colors.grey.shade400;
+                      }
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: InkWell(
+                        onTap: _answered ? null : () => _checkAnswer(i),
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: bgColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _answered ? borderColor : Colors.transparent, width: 2),
+                            boxShadow: [
+                              if (!_answered) BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 30, height: 30,
+                                decoration: BoxDecoration(
+                                  color: _answered && isCorrect ? const Color(0xFF4ECDC4) : Colors.grey.shade100,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    String.fromCharCode(65 + i), // A, B, C, D
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: _answered && isCorrect ? Colors.white : Colors.grey),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  q.options[i],
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: textColor),
+                                ),
+                              ),
+                              if (_answered && isCorrect) const Icon(Icons.check_circle, color: Color(0xFF4ECDC4)),
+                              if (_answered && isSelected && !isCorrect) const Icon(Icons.cancel, color: Color(0xFFFF6584)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

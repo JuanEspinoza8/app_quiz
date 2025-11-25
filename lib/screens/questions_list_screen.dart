@@ -1,93 +1,190 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:google_fonts/google_fonts.dart'; // 👈 Fuente
 import '../models/question.dart';
-import 'add_question_screen.dart'; // 👈 necesario para poder editar
-import 'dart:io';
+import 'add_question_screen.dart';
 
-
-class QuestionsListScreen extends StatelessWidget {
+class QuestionsListScreen extends StatefulWidget {
   const QuestionsListScreen({super.key});
+
+  @override
+  State<QuestionsListScreen> createState() => _QuestionsListScreenState();
+}
+
+class _QuestionsListScreenState extends State<QuestionsListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedCategory = 'Todas';
+  bool _showOnlyHard = false;
 
   @override
   Widget build(BuildContext context) {
     final box = Hive.box<Question>('questionsBox');
+    final Set<String> categoriesSet = {'Todas'};
+    for (var q in box.values) categoriesSet.add(q.category);
+    final List<String> categories = categoriesSet.toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Preguntas guardadas'),
-      ),
-      body: ValueListenableBuilder(
-        valueListenable: box.listenable(),
-        builder: (context, Box<Question> box, _) {
-          if (box.isEmpty) {
-            return const Center(child: Text('No hay preguntas aún 💤'));
-          }
-
-          return ListView.builder(
-            itemCount: box.length,
-            itemBuilder: (context, index) {
-              final question = box.getAt(index)!;
-
-              return ListTile(
-                leading: question.imagePath != null
-                    ? Image.file(
-                  File(question.imagePath!),
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                )
-                    : const Icon(Icons.image_not_supported),
-
-                title: Text(question.questionText),
-                subtitle: Text('Categoría: ${question.category}'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.redAccent),
-                  onPressed: () => _confirmDelete(context, box, index),
+      appBar: AppBar(title: const Text('Banco de Preguntas')),
+      body: Column(
+        children: [
+          // Buscador Flotante
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar...',
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _searchController.clear()))
+                      : null,
                 ),
-                // 👇 si tocás la pregunta, la abre para editarla
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AddQuestionScreen(editQuestion: question),
+                onChanged: (val) => setState(() {}),
+              ),
+            ),
+          ),
+
+          // Filtros
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                FilterChip(
+                  label: const Text('⚠️ Difíciles'),
+                  selected: _showOnlyHard,
+                  onSelected: (val) => setState(() => _showOnlyHard = val),
+                  backgroundColor: Colors.white,
+                  selectedColor: const Color(0xFFFF6584).withOpacity(0.2),
+                  labelStyle: TextStyle(color: _showOnlyHard ? const Color(0xFFFF6584) : Colors.black87),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: _showOnlyHard ? const Color(0xFFFF6584) : Colors.grey.shade200)),
+                  showCheckmark: false,
+                ),
+                const SizedBox(width: 8),
+                ...categories.map((cat) {
+                  final isSelected = _selectedCategory == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(cat),
+                      selected: isSelected,
+                      onSelected: (selected) { if (selected) setState(() => _selectedCategory = cat); },
+                      backgroundColor: Colors.white,
+                      selectedColor: const Color(0xFF6C63FF),
+                      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.shade200)),
+                      showCheckmark: false,
                     ),
                   );
-                },
-              );
-            },
-          );
-        },
+                }),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Lista de Preguntas
+          Expanded(
+            child: ValueListenableBuilder(
+              valueListenable: box.listenable(),
+              builder: (context, Box<Question> box, _) {
+                final filteredQuestions = box.values.where((q) {
+                  final matchText = q.questionText.toLowerCase().contains(_searchController.text.toLowerCase());
+                  final matchCategory = _selectedCategory == 'Todas' || q.category == _selectedCategory;
+                  final matchHard = !_showOnlyHard || q.errorCount > 0;
+                  return matchText && matchCategory && matchHard;
+                }).toList();
+
+                if (filteredQuestions.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text('No encontramos nada', style: TextStyle(color: Colors.grey.shade500)),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  itemCount: filteredQuestions.length,
+                  itemBuilder: (context, index) {
+                    final question = filteredQuestions[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: _buildLeadingIcon(question),
+                        title: Text(
+                          question.questionText,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
+                                child: Text(question.category, style: TextStyle(fontSize: 10, color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+                              ),
+                              if (question.errorCount > 0) ...[
+                                const SizedBox(width: 8),
+                                Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red.shade300),
+                                Text(" ${question.errorCount}", style: TextStyle(fontSize: 11, color: Colors.red.shade300)),
+                              ]
+                            ],
+                          ),
+                        ),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddQuestionScreen(editQuestion: question))),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
-}
 
-/// Función auxiliar para confirmar antes de borrar
-void _confirmDelete(BuildContext context, Box<Question> box, int index) async {
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Eliminar pregunta'),
-      content: const Text('¿Seguro que querés borrar esta pregunta?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
+  Widget _buildLeadingIcon(Question q) {
+    if (q.imagePath != null) {
+      return Container(
+        width: 50, height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          image: DecorationImage(image: FileImage(File(q.imagePath!)), fit: BoxFit.cover),
         ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-          child: const Text('Eliminar'),
-        ),
-      ],
-    ),
-  );
-
-  if (confirm == true) {
-    box.deleteAt(index);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Pregunta eliminada ✅')),
+      );
+    }
+    return Container(
+      width: 50, height: 50,
+      decoration: BoxDecoration(
+        color: const Color(0xFF6C63FF).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(Icons.quiz, color: Color(0xFF6C63FF)),
     );
   }
 }
