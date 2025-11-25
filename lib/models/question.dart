@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'question.g.dart';
 
+
 @HiveType(typeId: 0)
 class Question extends HiveObject {
   @HiveField(0)
@@ -23,8 +24,7 @@ class Question extends HiveObject {
   DateTime createdAt;
 
   @HiveField(6)
-  String? imagePath; // 👈 nueva propiedad opcional
-
+  String? imagePath;
 
   Question({
     required this.id,
@@ -35,4 +35,26 @@ class Question extends HiveObject {
     required this.createdAt,
     this.imagePath,
   });
+
+  //  para exportar a JSON
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'questionText': questionText,
+    'options': options,
+    'correctAnswerIndex': correctAnswerIndex,
+    'category': category,
+    'createdAt': createdAt.toIso8601String(),
+    'imagePath': imagePath,
+  };
+
+  //  para importar desde JSON
+  factory Question.fromJson(Map<String, dynamic> json) => Question(
+    id: json['id'] as String,
+    questionText: json['questionText'] as String,
+    options: (json['options'] as List).map((e) => e.toString()).toList(),
+    correctAnswerIndex: json['correctAnswerIndex'] as int,
+    category: json['category'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+    imagePath: json['imagePath'] as String?,
+  );
 }

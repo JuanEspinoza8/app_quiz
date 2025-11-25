@@ -7,25 +7,26 @@ import 'package:quiz_daily/screens/questions_list_screen.dart';
 import 'package:quiz_daily/screens/daily_goal_screen.dart';
 import 'package:quiz_daily/screens/daily_quiz_screen.dart';
 import 'package:quiz_daily/services/notification_service.dart';
+import 'package:quiz_daily/services/data_sync_service.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:quiz_daily/services/import_service.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
 
-  // 🧩 Registro de adaptadores Hive
   Hive.registerAdapter(QuestionAdapter());
   Hive.registerAdapter(UserProgressAdapter());
 
-  // 📦 Apertura de cajas
   await Hive.openBox<Question>('questionsBox');
   await Hive.openBox<UserProgress>('progressBox');
 
-  // 🔔 Inicialización de notificaciones
   await NotificationService.init();
 
-  // ⚙️ Programa notificación diaria a las 21:35
   final now = DateTime.now();
-  // 🔸 Esto hace que si ejecutás la app a las 21:34, se programe para dentro de 1 minuto.
   await NotificationService.scheduleDaily(now.hour, now.minute + 1);
 
   runApp(const QuizDailyApp());
@@ -45,9 +46,9 @@ class QuizDailyApp extends StatelessWidget {
       ),
       home: const HomeScreen(),
       routes: {
-        '/questions': (context) => const QuestionsListScreen(),
-        '/goal': (context) => const DailyGoalScreen(),
-        '/quiz': (context) => const DailyQuizScreen(),
+        '/questions': (_) => const QuestionsListScreen(),
+        '/goal': (_) => const DailyGoalScreen(),
+        '/quiz': (_) => const DailyQuizScreen(),
       },
     );
   }
@@ -95,8 +96,40 @@ class HomeScreen extends StatelessWidget {
                 label: const Text('Quiz Diario'),
                 onPressed: () => Navigator.pushNamed(context, '/quiz'),
               ),
-              const SizedBox(height: 32),
-              // 🔔 Botón de test de notificación
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.share),
+                label: const Text('Exportar preguntas'),
+                onPressed: () async {
+                  final path = await DataSyncService.exportQuestions();
+                  await Share.shareXFiles([XFile(path)],
+                      text: "Mis preguntas del Quiz Daily 📚");
+                },
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.input),
+                label: const Text("Importar preguntas"),
+                onPressed: () async {
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['json'],
+                  );
+
+                  if (result == null) {
+                    return; // usuario canceló
+                  }
+
+                  final file = File(result.files.single.path!);
+
+                  final count = await ImportService.importQuestions(file);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Se importaron $count preguntas 📚")),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () async {
                   await NotificationService.showNow(
@@ -104,13 +137,7 @@ class HomeScreen extends StatelessWidget {
                     "Esta es una prueba 💬",
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.greenAccent.shade700,
-                ),
-                child: const Text(
-                  "Probar notificación ahora",
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: const Text("Probar notificación ahora"),
               ),
             ],
           ),
