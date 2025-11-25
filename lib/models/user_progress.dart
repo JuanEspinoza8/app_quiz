@@ -16,10 +16,19 @@ class UserProgress extends HiveObject {
   @HiveField(3)
   DateTime lastPlayedDate; // última fecha en que jugó
 
+  // 👇 NUEVOS CAMPOS
+  @HiveField(4)
+  String? targetCategory; // Categoría que quiere estudiar
+
+  @HiveField(5)
+  DateTime? targetDate;   // Fecha límite (parcial)
+
   UserProgress({
     required this.dailyGoal,
     required this.answeredToday,
     required this.streak,
     required this.lastPlayedDate,
+    this.targetCategory,
+    this.targetDate,
   });
 }

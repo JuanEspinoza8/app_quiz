@@ -6,7 +6,7 @@ import '../models/question.dart';
 import 'package:uuid/uuid.dart';
 
 class AddQuestionScreen extends StatefulWidget {
-  final Question? editQuestion; // si viene con valor, estamos editando
+  final Question? editQuestion;
 
   const AddQuestionScreen({super.key, this.editQuestion});
 
@@ -18,11 +18,18 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   final _questionController = TextEditingController();
   final _optionControllers = List.generate(4, (_) => TextEditingController());
   int _correctIndex = 0;
+
+  // Controlador para explicación
+  final _explanationController = TextEditingController();
+
+  // Controlador para categoría (lo usaremos con el Autocomplete)
   final _categoryController = TextEditingController();
 
-  // 👇 Nueva parte para manejar imágenes
   File? _selectedImage;
   final _picker = ImagePicker();
+
+  // Lista de categorías existentes para sugerir
+  List<String> _existingCategories = [];
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
@@ -36,7 +43,8 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   @override
   void initState() {
     super.initState();
-    // Si estamos editando, llenamos los campos
+    _loadCategories();
+
     if (widget.editQuestion != null) {
       final q = widget.editQuestion!;
       _questionController.text = q.questionText;
@@ -47,108 +55,172 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       }
       _correctIndex = q.correctAnswerIndex;
       _categoryController.text = q.category;
+      _explanationController.text = q.explanation ?? '';
 
-      // 👇 Si tiene imagen guardada, la cargamos
       if (q.imagePath != null) {
         _selectedImage = File(q.imagePath!);
       }
     }
   }
 
+  void _loadCategories() {
+    final box = Hive.box<Question>('questionsBox');
+    final categories = box.values.map((q) => q.category).toSet().toList();
+    setState(() {
+      _existingCategories = categories;
+    });
+  }
+
   void _saveQuestion() async {
     final questionBox = Hive.box<Question>('questionsBox');
     final uuid = const Uuid();
 
-    // Crear objeto con datos actuales
+    // Validaciones básicas
+    if (_questionController.text.isEmpty || _categoryController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Faltan datos obligatorios ⚠️')));
+      return;
+    }
+
     final newOrUpdated = Question(
       id: widget.editQuestion?.id ?? uuid.v4(),
       questionText: _questionController.text.trim(),
       options: _optionControllers.map((c) => c.text.trim()).toList(),
       correctAnswerIndex: _correctIndex,
-      category: _categoryController.text.trim().isEmpty
-          ? 'General'
-          : _categoryController.text.trim(),
-      createdAt:
-      widget.editQuestion?.createdAt ?? DateTime.now(), // conserva fecha
-      imagePath: _selectedImage?.path, // 👈 guardamos ruta de imagen
+      category: _categoryController.text.trim(),
+      createdAt: widget.editQuestion?.createdAt ?? DateTime.now(),
+      imagePath: _selectedImage?.path,
+      // Guardamos la explicación y mantenemos estadísticas viejas si editamos
+      explanation: _explanationController.text.trim().isEmpty ? null : _explanationController.text.trim(),
+      errorCount: widget.editQuestion?.errorCount ?? 0,
+      totalAttempts: widget.editQuestion?.totalAttempts ?? 0,
     );
 
-    // Guardar o actualizar
     if (widget.editQuestion != null) {
       final index = questionBox.values.toList().indexOf(widget.editQuestion!);
       if (index != -1) {
         await questionBox.putAt(index, newOrUpdated);
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pregunta actualizada ✅')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pregunta actualizada ✅')));
     } else {
       await questionBox.add(newOrUpdated);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pregunta guardada ✅')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pregunta guardada ✅')));
     }
 
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.editQuestion == null
-            ? 'Agregar Pregunta'
-            : 'Editar Pregunta'),
+        title: Text(widget.editQuestion == null ? 'Agregar Pregunta' : 'Editar Pregunta'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Enunciado de la pregunta'),
-            TextField(controller: _questionController),
-            const SizedBox(height: 16),
-            const Text('Opciones (respuestas posibles):'),
+            const Text('Enunciado', style: TextStyle(fontWeight: FontWeight.bold)),
+            TextField(
+              controller: _questionController,
+              decoration: const InputDecoration(hintText: 'Ej: ¿Cuál es la capital de Francia?'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 20),
+
+            const Text('Opciones', style: TextStyle(fontWeight: FontWeight.bold)),
             for (int i = 0; i < 4; i++)
-              ListTile(
+              RadioListTile<int>(
                 title: TextField(
                   controller: _optionControllers[i],
-                  decoration: InputDecoration(labelText: 'Opción ${i + 1}'),
+                  decoration: InputDecoration(hintText: 'Opción ${i + 1}'),
                 ),
-                leading: Radio<int>(
-                  value: i,
-                  groupValue: _correctIndex,
-                  onChanged: (val) => setState(() => _correctIndex = val!),
-                ),
+                value: i,
+                groupValue: _correctIndex,
+                onChanged: (val) => setState(() => _correctIndex = val!),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
               ),
-            const SizedBox(height: 16),
-            const Text('Categoría o tema'),
-            TextField(controller: _categoryController),
 
-            const SizedBox(height: 24),
-            const Text('Imagen opcional:'),
-            const SizedBox(height: 8),
-            if (_selectedImage != null)
-              Center(
-                child: Image.file(
-                  _selectedImage!,
-                  height: 150,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            TextButton.icon(
-              onPressed: _pickImage,
-              icon: const Icon(Icons.image),
-              label: const Text('Seleccionar imagen'),
+            const SizedBox(height: 16),
+            const Text('Explicación (Opcional)', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Aparecerá después de responder para aclarar dudas.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            TextField(
+              controller: _explanationController,
+              decoration: const InputDecoration(hintText: 'Ej: París es la capital desde el año...'),
+              maxLines: 2,
+            ),
+
+            const SizedBox(height: 16),
+            const Text('Categoría', style: TextStyle(fontWeight: FontWeight.bold)),
+            // 👇 Autocomplete Mágico
+            Autocomplete<String>(
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                if (textEditingValue.text == '') {
+                  return const Iterable<String>.empty();
+                }
+                return _existingCategories.where((String option) {
+                  return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                });
+              },
+              onSelected: (String selection) {
+                _categoryController.text = selection;
+              },
+              fieldViewBuilder: (context, fieldTextEditingController, focusNode, onFieldSubmitted) {
+                // Sincronizamos el controlador interno del Autocomplete con el nuestro si es necesario
+                if (_categoryController.text.isNotEmpty && fieldTextEditingController.text.isEmpty) {
+                  fieldTextEditingController.text = _categoryController.text;
+                }
+                // Escuchamos cambios manuales
+                fieldTextEditingController.addListener(() {
+                  _categoryController.text = fieldTextEditingController.text;
+                });
+
+                return TextField(
+                  controller: fieldTextEditingController,
+                  focusNode: focusNode,
+                  decoration: const InputDecoration(
+                    hintText: 'Ej: Historia, Matemáticas...',
+                    suffixIcon: Icon(Icons.arrow_drop_down),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 24),
-            Center(
+            Row(
+              children: [
+                if (_selectedImage != null)
+                  Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      Image.file(_selectedImage!, width: 80, height: 80, fit: BoxFit.cover),
+                      InkWell(
+                        onTap: () => setState(() => _selectedImage = null),
+                        child: const CircleAvatar(radius: 10, backgroundColor: Colors.red, child: Icon(Icons.close, size: 12, color: Colors.white)),
+                      )
+                    ],
+                  ),
+                TextButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.image),
+                  label: const Text('Imagen (Opcional)'),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.save),
-                label: Text(widget.editQuestion == null
-                    ? 'Guardar pregunta'
-                    : 'Actualizar pregunta'),
+                label: const Text('GUARDAR'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: _saveQuestion,
               ),
             ),

@@ -25,6 +25,10 @@ class ImportService {
         category: item['category'],
         createdAt: DateTime.parse(item['createdAt']),
         imagePath: item['imagePath'],
+        // 👇 LEEMOS LOS NUEVOS CAMPOS (con seguridad para archivos viejos)
+        explanation: item['explanation'],
+        errorCount: item['errorCount'] ?? 0,
+        totalAttempts: item['totalAttempts'] ?? 0,
       );
 
       await box.add(q);

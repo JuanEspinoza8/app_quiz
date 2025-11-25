@@ -18,10 +18,15 @@ class DataSyncService {
         "category": q.category,
         "createdAt": q.createdAt.toIso8601String(),
         "imagePath": q.imagePath,
+        // 👇 NUEVOS CAMPOS AGREGADOS
+        "explanation": q.explanation,
+        "errorCount": q.errorCount,
+        "totalAttempts": q.totalAttempts,
       });
     }
 
-    final jsonString = jsonEncode(data);
+    // Le damos formato bonito (indentado) para que sea legible si lo abres en PC
+    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
 
     final dir = await getTemporaryDirectory();
     final file = File("${dir.path}/preguntas_export.json");
