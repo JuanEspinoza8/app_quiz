@@ -110,7 +110,12 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                     child: Container(
                       height: 80, width: 80,
                       margin: const EdgeInsets.only(top: 24),
-                      decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[300]!), image: _selectedImage != null ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover) : null),
+                      decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          image: _selectedImage != null ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover) : null
+                      ),
                       child: _selectedImage == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
                     ),
                   )
@@ -124,11 +129,20 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
             const SizedBox(height: 10),
             ...List.generate(4, (i) => Container(
               margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _correctIndex == i ? const Color(0xFF4ECDC4) : Colors.transparent, width: 2), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5)]),
+              decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor, // ✅ Dinámico
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _correctIndex == i ? const Color(0xFF4ECDC4) : Colors.transparent, width: 2),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]
+              ),
               child: RadioListTile<int>(
                 value: i, groupValue: _correctIndex, onChanged: (v) => setState(() => _correctIndex = v!),
                 activeColor: const Color(0xFF4ECDC4),
-                title: TextField(controller: _optionControllers[i], decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none), style: const TextStyle(fontSize: 14)),
+                title: TextField(
+                    controller: _optionControllers[i],
+                    decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
+                    style: const TextStyle(fontSize: 14)
+                ),
               ),
             )),
 
@@ -142,7 +156,12 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
             const SizedBox(height: 30),
             ElevatedButton(
               onPressed: _save,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6C63FF), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6C63FF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
+              ),
               child: const Text("GUARDAR PREGUNTA", style: TextStyle(fontWeight: FontWeight.bold)),
             )
           ],
@@ -154,12 +173,22 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   Widget _buildCard(List<Widget> children) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]),
+      decoration: BoxDecoration(
+          color: Theme.of(context).cardColor, // ✅ Dinámico
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
   }
 
   InputDecoration _inputDeco(String hint) {
-    return InputDecoration(hintText: hint, filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(16));
+    return InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro y suave
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.all(16)
+    );
   }
 }

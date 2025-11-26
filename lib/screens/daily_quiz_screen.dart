@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
-import 'package:google_fonts/google_fonts.dart'; // 👈 Fuente
+import 'package:google_fonts/google_fonts.dart';
 import '../models/question.dart';
 import '../services/progress_service.dart';
 
@@ -34,8 +34,14 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     if (_box.isEmpty) return;
 
     final progress = _progressService.progress;
+    // 👇 1. Obtenemos todas las preguntas
     List<Question> candidates = _box.values.toList();
     String? currentModeMsg;
+
+    // 👇 2. FILTRO NUEVO: Quitamos las categorías desactivadas
+    if (progress.hiddenCategories.isNotEmpty) {
+      candidates = candidates.where((q) => !progress.hiddenCategories.contains(q.category)).toList();
+    }
 
     // Lógica de Modo Examen
     if (progress.targetCategory != null && progress.targetDate != null) {
@@ -49,8 +55,12 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       }
     }
 
+    // Si después de filtrar no queda nada
     if (candidates.isEmpty) {
-      setState(() => _currentQuestion = null);
+      setState(() {
+        _currentQuestion = null;
+        _modeMessage = "¡No hay preguntas habilitadas!";
+      });
       return;
     }
 
@@ -98,7 +108,6 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
     _progressService.incrementProgress(isCorrect);
 
-    // Feedback visual (Snackbar flotante)
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(isCorrect ? '✨ ¡Correcto! Sigue así' : '❌ Incorrecto, repasaremos esto'),
       backgroundColor: isCorrect ? const Color(0xFF4ECDC4) : const Color(0xFFFF6584),
@@ -146,7 +155,6 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     final q = _currentQuestion!;
     final p = _progressService.progress;
 
-    // Meta completada
     if (p.answeredToday >= p.dailyGoal) {
       return Scaffold(
         body: Container(
@@ -192,17 +200,20 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor, // ✅ Dinámico
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+            ),
             child: Text('${p.answeredToday}/${p.dailyGoal}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6C63FF))),
           )
         ],
       ),
       body: Column(
         children: [
-          // Barra de progreso lineal superior
           LinearProgressIndicator(
             value: p.answeredToday / p.dailyGoal,
-            backgroundColor: Colors.grey.shade200,
+            backgroundColor: Theme.of(context).dividerColor.withOpacity(0.1), // ✅ Más sutil
             color: const Color(0xFF4ECDC4),
             minHeight: 6,
           ),
@@ -216,9 +227,9 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor, // ✅ Dinámico
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
                     ),
                     child: Column(
                       children: [
@@ -231,12 +242,16 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                         Text(
                           q.questionText,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            // ✅ Quitamos color fijo
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), // ✅ Fondo más genérico
                           child: Text(q.category, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
                         ),
                       ],
@@ -249,22 +264,24 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     final isCorrect = i == q.correctAnswerIndex;
                     final isSelected = i == _selectedIndex;
 
-                    Color bgColor = Colors.white;
+                    Color bgColor = Theme.of(context).cardColor; // ✅ Base dinámica
                     Color borderColor = Colors.transparent;
-                    Color textColor = Colors.black87;
+                    Color? textColor; // Dejar null para que use el tema por defecto
 
                     if (_answered) {
                       if (isCorrect) {
-                        bgColor = const Color(0xFF4ECDC4).withOpacity(0.2); // Verde suave
+                        bgColor = const Color(0xFF4ECDC4).withOpacity(0.2);
                         borderColor = const Color(0xFF4ECDC4);
                         textColor = const Color(0xFF1A535C);
+                        if (Theme.of(context).brightness == Brightness.dark) textColor = const Color(0xFF4ECDC4); // Ajuste para dark mode
                       } else if (isSelected) {
-                        bgColor = const Color(0xFFFF6584).withOpacity(0.2); // Rojo suave
+                        bgColor = const Color(0xFFFF6584).withOpacity(0.2);
                         borderColor = const Color(0xFFFF6584);
                         textColor = const Color(0xFFA3001B);
+                        if (Theme.of(context).brightness == Brightness.dark) textColor = const Color(0xFFFF6584); // Ajuste para dark mode
                       } else {
-                        bgColor = Colors.grey.shade50;
-                        textColor = Colors.grey.shade400;
+                        bgColor = Theme.of(context).cardColor.withOpacity(0.5); // Deshabilitado visualmente
+                        textColor = Colors.grey;
                       }
                     }
 
@@ -281,7 +298,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: _answered ? borderColor : Colors.transparent, width: 2),
                             boxShadow: [
-                              if (!_answered) BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                              if (!_answered) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
                             ],
                           ),
                           child: Row(
@@ -289,7 +306,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                               Container(
                                 width: 30, height: 30,
                                 decoration: BoxDecoration(
-                                  color: _answered && isCorrect ? const Color(0xFF4ECDC4) : Colors.grey.shade100,
+                                  color: _answered && isCorrect ? const Color(0xFF4ECDC4) : Colors.grey.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(

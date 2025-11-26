@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'package:google_fonts/google_fonts.dart'; // 👈 Fuente
+import 'package:google_fonts/google_fonts.dart';
 import '../models/question.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
@@ -45,7 +45,7 @@ class ProfileScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Resumen General
-            _buildSummaryRow(userProgress, totalAnswered, globalAccuracy),
+            _buildSummaryRow(context, userProgress, totalAnswered, globalAccuracy),
 
             const SizedBox(height: 30),
 
@@ -53,14 +53,14 @@ class ProfileScreen extends StatelessWidget {
             Text("Tu semana", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Container(
-              height: 220,
+              height: 250, // 👈 AUMENTAMOS UN POCO LA ALTURA TOTAL
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
-              child: _buildWeeklyChart(statsBox),
+              child: _buildWeeklyChart(statsBox, context),
             ),
 
             const SizedBox(height: 30),
@@ -68,14 +68,14 @@ class ProfileScreen extends StatelessWidget {
             // Rendimiento por Materia
             Text("Por materia", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            _buildCategoryStats(questionsByCategory),
+            _buildCategoryStats(context, questionsByCategory),
 
             const SizedBox(height: 30),
 
             // Logros
             Text("Tus Logros", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            _buildAchievementsGrid(userProgress, totalAnswered, globalAccuracy, allQuestions.length),
+            _buildAchievementsGrid(context, userProgress, totalAnswered, globalAccuracy, allQuestions.length),
 
             const SizedBox(height: 40),
           ],
@@ -84,25 +84,25 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow(UserProgress progress, int totalAnswered, double accuracy) {
+  Widget _buildSummaryRow(BuildContext context, UserProgress progress, int totalAnswered, double accuracy) {
     return Row(
       children: [
-        Expanded(child: _statCard("Racha", "${progress.streak} días", Icons.local_fire_department, Colors.orange)),
+        Expanded(child: _statCard(context, "Racha", "${progress.streak} días", Icons.local_fire_department, Colors.orange)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard("Total", "$totalAnswered", Icons.check_circle_outline, const Color(0xFF6C63FF))),
+        Expanded(child: _statCard(context, "Total", "$totalAnswered", Icons.check_circle_outline, const Color(0xFF6C63FF))),
         const SizedBox(width: 12),
-        Expanded(child: _statCard("Precisión", "${(accuracy * 100).toStringAsFixed(0)}%", Icons.pie_chart_outline, const Color(0xFF4ECDC4))),
+        Expanded(child: _statCard(context, "Precisión", "${(accuracy * 100).toStringAsFixed(0)}%", Icons.pie_chart_outline, const Color(0xFF4ECDC4))),
       ],
     );
   }
 
-  Widget _statCard(String label, String value, IconData icon, Color color) {
+  Widget _statCard(BuildContext context, String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -115,7 +115,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklyChart(Box<DailyStats> statsBox) {
+  Widget _buildWeeklyChart(Box<DailyStats> statsBox, BuildContext context) {
     final now = DateTime.now();
     final List<DailyStats?> weekData = [];
     final List<String> weekDays = [];
@@ -130,7 +130,7 @@ class ProfileScreen extends StatelessWidget {
       } catch (e) {
         weekData.add(null);
       }
-      weekDays.add(DateFormat.E('es').format(date).substring(0, 1).toUpperCase()); // L, M, M...
+      weekDays.add(DateFormat.E('es').format(date).substring(0, 1).toUpperCase());
     }
 
     return BarChart(
@@ -145,9 +145,10 @@ class ProfileScreen extends StatelessWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              reservedSize: 40, // 👈 ESTO ES LO QUE FALTABA: Espacio reservado para las letras
               getTitlesWidget: (val, _) => Padding(
                 padding: const EdgeInsets.only(top: 10),
-                child: Text(weekDays[val.toInt()], style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                child: Text(weekDays[val.toInt()], style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
               ),
             ),
           ),
@@ -165,7 +166,7 @@ class ProfileScreen extends StatelessWidget {
             barRods: [
               BarChartRodData(
                 toY: total == 0 ? 0.5 : total,
-                color: Colors.grey.shade100,
+                color: Colors.grey.withOpacity(0.2),
                 width: 14,
                 borderRadius: BorderRadius.circular(4),
                 rodStackItems: [
@@ -180,7 +181,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryStats(Map<String, List<Question>> grouped) {
+  Widget _buildCategoryStats(BuildContext context, Map<String, List<Question>> grouped) {
     if (grouped.isEmpty) return const Text("Juega un poco para ver datos.");
 
     return Column(
@@ -199,7 +200,7 @@ class ProfileScreen extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16)),
           child: Column(
             children: [
               Row(
@@ -214,7 +215,7 @@ class ProfileScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: accuracy,
-                  backgroundColor: Colors.grey.shade100,
+                  backgroundColor: Colors.grey.withOpacity(0.1),
                   color: _getColorForAccuracy(accuracy),
                   minHeight: 8,
                 ),
@@ -232,7 +233,7 @@ class ProfileScreen extends StatelessWidget {
     return const Color(0xFFFF6584);
   }
 
-  Widget _buildAchievementsGrid(UserProgress p, int totalAnswered, double accuracy, int totalQuestions) {
+  Widget _buildAchievementsGrid(BuildContext context, UserProgress p, int totalAnswered, double accuracy, int totalQuestions) {
     final achievements = [
       {"icon": Icons.school, "title": "Novato", "desc": "10 respuestas", "unlocked": totalAnswered >= 10},
       {"icon": Icons.local_fire_department, "title": "En llamas", "desc": "Racha de 3", "unlocked": p.streak >= 3},
@@ -257,11 +258,11 @@ class ProfileScreen extends StatelessWidget {
           triggerMode: TooltipTriggerMode.tap,
           child: Container(
             decoration: BoxDecoration(
-              color: isUnlocked ? const Color(0xFFFFBC42) : Colors.white,
+              color: isUnlocked ? const Color(0xFFFFBC42) : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: isUnlocked
                   ? [BoxShadow(color: const Color(0xFFFFBC42).withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))]
-                  : [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5)],
+                  : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

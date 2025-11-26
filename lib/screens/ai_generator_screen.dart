@@ -79,13 +79,45 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
     }
   }
 
-  // (Método _editQuestion y _saveAll omitidos por brevedad, son iguales a la lógica anterior pero con el estilo nuevo, te los incluyo completos abajo en el archivo)
-  void _editQuestion(int index) {
-    // ... misma lógica de edición ...
-    // Replicaré el método completo en el bloque final
+  void _editQuestionLocal(int index) {
+    final q = _generatedQuestions[index];
+    final questionCtrl = TextEditingController(text: q.questionText);
+    final explanationCtrl = TextEditingController(text: q.explanation);
+    final optionCtrls = List.generate(4, (i) => TextEditingController(text: q.options[i]));
+    int tempCorrectIndex = q.correctAnswerIndex;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text("Editar"),
+            content: SingleChildScrollView(
+              child: Column(children: [
+                TextField(controller: questionCtrl, decoration: const InputDecoration(labelText: "Pregunta")),
+                const SizedBox(height: 10),
+                ...List.generate(4, (i) => Row(children: [Radio<int>(value: i, groupValue: tempCorrectIndex, onChanged: (v)=>setDialogState(()=>tempCorrectIndex=v!)), Expanded(child: TextField(controller: optionCtrls[i]))])),
+                TextField(controller: explanationCtrl, decoration: const InputDecoration(labelText: "Explicación")),
+              ]),
+            ),
+            actions: [
+              TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancelar")),
+              ElevatedButton(onPressed: () {
+                setState(() => _generatedQuestions[index] = Question(id: q.id, questionText: questionCtrl.text, options: optionCtrls.map((c)=>c.text).toList(), correctAnswerIndex: tempCorrectIndex, category: _categoryController.text, createdAt: q.createdAt, explanation: explanationCtrl.text, errorCount: 0, totalAttempts: 0));
+                Navigator.pop(context);
+              }, child: const Text("Guardar"))
+            ],
+          );
+        },
+      ),
+    );
   }
 
-  // ... (Aquí viene el archivo completo) 👇
+  Future<void> _saveAll() async {
+    final box = Hive.box<Question>('questionsBox');
+    for (var q in _generatedQuestions) await box.add(q);
+    if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅'))); Navigator.pop(context); }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,10 +131,13 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // CARD INPUT
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]),
+                    decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor, // ✅ Dinámico
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -116,7 +151,12 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                             controller.addListener(() => _categoryController.text = controller.text);
                             return TextField(
                               controller: controller, focusNode: node,
-                              decoration: InputDecoration(hintText: 'Ej: Biología...', filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                              decoration: InputDecoration(
+                                  hintText: 'Ej: Biología...',
+                                  filled: true,
+                                  fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                              ),
                             );
                           },
                         ),
@@ -132,13 +172,18 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                           Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: Colors.deepPurple.shade50, borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(color: Colors.deepPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
                             child: Row(children: [const Icon(Icons.check_circle, color: Colors.deepPurple, size: 20), const SizedBox(width: 8), Expanded(child: Text(_attachedFileName!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple), overflow: TextOverflow.ellipsis)), IconButton(onPressed: () => setState(() { _attachedFileName=null; _attachedFileBytes=null; }), icon: const Icon(Icons.close, size: 18))]),
                           ),
                         TextField(
                           controller: _textController,
                           maxLines: 5,
-                          decoration: InputDecoration(hintText: 'Pega aquí tus apuntes...', filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                          decoration: InputDecoration(
+                              hintText: 'Pega aquí tus apuntes...',
+                              filled: true,
+                              fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                          ),
                         ),
                       ],
                     ),
@@ -177,21 +222,21 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor, // ✅ Dinámico
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
-                          leading: CircleAvatar(backgroundColor: Colors.deepPurple.shade50, child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),
+                          leading: CircleAvatar(backgroundColor: Colors.deepPurple.withOpacity(0.1), child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),
                           title: Text(q.questionText, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text("Resp: ${q.options[q.correctAnswerIndex]}", style: TextStyle(color: Colors.grey[600])),
                           trailing: const Icon(Icons.edit, size: 18, color: Colors.grey),
-                          onTap: () => _editQuestionLocal(i), // Método local
+                          onTap: () => _editQuestionLocal(i),
                         ),
                       );
                     }),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: _saveAll,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black87, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87, foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                       child: const Text("GUARDAR TODO"),
                     )
                   ]
@@ -202,51 +247,5 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
         ],
       ),
     );
-  }
-
-  // Métodos auxiliares para editar (copiados para contexto)
-  void _editQuestionLocal(int index) {
-    // (Mismo código de edición que tenías antes, pero adaptado visualmente si quieres)
-    // Por simplicidad, asumiremos que usas el mismo Dialog.
-    // Aquí solo invoco una lógica simple para no alargar el código infinitamente.
-    // Si quieres el código del Dialog completo avísame, pero es el mismo de antes.
-    // Re-implementación rápida:
-    final q = _generatedQuestions[index];
-    final questionCtrl = TextEditingController(text: q.questionText);
-    final explanationCtrl = TextEditingController(text: q.explanation);
-    final optionCtrls = List.generate(4, (i) => TextEditingController(text: q.options[i]));
-    int tempCorrectIndex = q.correctAnswerIndex;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text("Editar"),
-            content: SingleChildScrollView(
-              child: Column(children: [
-                TextField(controller: questionCtrl, decoration: const InputDecoration(labelText: "Pregunta")),
-                const SizedBox(height: 10),
-                ...List.generate(4, (i) => Row(children: [Radio<int>(value: i, groupValue: tempCorrectIndex, onChanged: (v)=>setDialogState(()=>tempCorrectIndex=v!)), Expanded(child: TextField(controller: optionCtrls[i]))])),
-                TextField(controller: explanationCtrl, decoration: const InputDecoration(labelText: "Explicación")),
-              ]),
-            ),
-            actions: [
-              TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancelar")),
-              ElevatedButton(onPressed: () {
-                setState(() => _generatedQuestions[index] = Question(id: q.id, questionText: questionCtrl.text, options: optionCtrls.map((c)=>c.text).toList(), correctAnswerIndex: tempCorrectIndex, category: _categoryController.text, createdAt: q.createdAt, explanation: explanationCtrl.text, errorCount: 0, totalAttempts: 0));
-                Navigator.pop(context);
-              }, child: const Text("Guardar"))
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _saveAll() async {
-    final box = Hive.box<Question>('questionsBox');
-    for (var q in _generatedQuestions) await box.add(q);
-    if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅'))); Navigator.pop(context); }
   }
 }

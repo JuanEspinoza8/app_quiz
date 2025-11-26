@@ -16,7 +16,6 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
   UserProgress? _progress;
   final _goalController = TextEditingController();
 
-  // Variables para Modo Examen
   String? _selectedCategory;
   DateTime? _selectedDate;
 
@@ -25,7 +24,6 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
     super.initState();
     _progressBox = Hive.box<UserProgress>('progressBox');
 
-    // Inicialización de seguridad
     if (_progressBox.isEmpty) {
       _progressBox.add(UserProgress(
           dailyGoal: 3,
@@ -48,16 +46,12 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
       initialDate: _selectedDate ?? now.add(const Duration(days: 7)),
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
-      // 👇 HEMOS SIMPLIFICADO ESTA PARTE PARA EVITAR EL ERROR
       builder: (context, child) {
+        // Aseguramos que el DatePicker use el tema correcto o forzamos uno compatible
         return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF6C63FF), // Color violeta bonito
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
+          data: Theme.of(context).brightness == Brightness.dark
+              ? ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: Color(0xFF6C63FF)))
+              : ThemeData.light().copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF6C63FF))),
           child: child!,
         );
       },
@@ -77,7 +71,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Objetivos actualizados 🎯', style: GoogleFonts.poppins()),
+        content: Text('Objetivos actualizados 🎯', style: GoogleFonts.poppins(color: Colors.white)),
         behavior: SnackBarBehavior.floating,
         backgroundColor: const Color(0xFF6C63FF),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -88,7 +82,6 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos categorías para el dropdown
     final questionBox = Hive.box<Question>('questionsBox');
     final categories = questionBox.values.map((q) => q.category).toSet().toList();
 
@@ -103,9 +96,9 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor, // ✅ Dinámico
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
               child: Column(
                 children: [
@@ -126,9 +119,9 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                         width: 100,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.grey[50],
+                          color: Colors.grey.withOpacity(0.1), // ✅ Neutro
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey[200]!),
+                          border: Border.all(color: Colors.grey.withOpacity(0.2)),
                         ),
                         child: TextField(
                           controller: _goalController,
@@ -146,20 +139,20 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
 
             const SizedBox(height: 30),
 
-            Text("Modo Examen 🎓", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+            Text("Modo Examen 🎓", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[600])),
             const SizedBox(height: 12),
 
             // TARJETA DE MODO EXAMEN
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor, // ✅ Dinámico
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
                     color: (_selectedCategory != null) ? const Color(0xFF6C63FF) : Colors.transparent,
                     width: 2
                 ),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,12 +160,13 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                   DropdownButtonFormField<String>(
                     decoration: InputDecoration(
                       labelText: "Materia a priorizar",
-                      labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+                      labelStyle: GoogleFonts.poppins(color: Colors.grey),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
                       prefixIcon: const Icon(Icons.category_rounded, color: Color(0xFF6C63FF)),
                     ),
+                    dropdownColor: Theme.of(context).cardColor, // ✅ Para que el menú no sea blanco
                     value: categories.contains(_selectedCategory) ? _selectedCategory : null,
                     items: [
                       DropdownMenuItem(value: null, child: Text("Sin filtro (Todas)", style: GoogleFonts.poppins())),
@@ -189,7 +183,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.grey[50],
+                        color: Colors.grey.withOpacity(0.1), // ✅ Neutro
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -205,7 +199,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                                 _selectedDate != null
                                     ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
                                     : "Seleccionar fecha",
-                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                             ],
                           ),
@@ -214,7 +208,6 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                     ),
                   ),
 
-                  // Botón Limpiar
                   if (_selectedCategory != null || _selectedDate != null)
                     Center(
                       child: Padding(
@@ -232,7 +225,6 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
 
             const SizedBox(height: 40),
 
-            // BOTÓN GUARDAR
             ElevatedButton(
               onPressed: _saveGoal,
               style: ElevatedButton.styleFrom(
@@ -241,7 +233,6 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
-                shadowColor: const Color(0xFF6C63FF).withOpacity(0.5),
               ),
               child: Text("Guardar Cambios", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
