@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io';
 
-// Imports
+// Imports de tus modelos y pantallas
 import 'package:quiz_daily/models/question.dart';
 import 'package:quiz_daily/models/user_progress.dart';
 import 'package:quiz_daily/models/daily_stats.dart';
@@ -15,41 +15,82 @@ import 'package:quiz_daily/screens/daily_quiz_screen.dart';
 import 'package:quiz_daily/screens/profile_screen.dart';
 import 'package:quiz_daily/screens/ai_generator_screen.dart';
 import 'package:quiz_daily/screens/settings_screen.dart';
-import 'package:quiz_daily/screens/onboarding_screen.dart'; // 👈 Importamos
+import 'package:quiz_daily/screens/onboarding_screen.dart';
 import 'package:quiz_daily/services/notification_service.dart';
 
 void main() async {
+  // Aseguramos que el motor gráfico esté listo antes de cualquier lógica
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('es', null);
-  await Hive.initFlutter();
 
-  Hive.registerAdapter(QuestionAdapter());
-  Hive.registerAdapter(UserProgressAdapter());
-  Hive.registerAdapter(DailyStatsAdapter());
+  try {
+    // Inicializamos formato de fechas para gráficos en español
+    await initializeDateFormatting('es', null);
 
-  await Hive.openBox<Question>('questionsBox');
-  final progressBox = await Hive.openBox<UserProgress>('progressBox');
-  await Hive.openBox<DailyStats>('statsBox');
+    // Inicializamos Hive
+    await Hive.initFlutter();
 
-  // Inicialización de primera vez
-  if (progressBox.isEmpty) {
-    progressBox.add(UserProgress(
-      dailyGoal: 5,
-      answeredToday: 0,
-      streak: 0,
-      lastPlayedDate: DateTime(2000, 1, 1),
-      notificationHour: 18,
-      notificationMinute: 0,
-      isDarkMode: false,
-      userName: '', // Vacío para que detecte que es usuario nuevo
-      hiddenCategories: [],
-    ));
+    // Registramos adaptadores (Tipos de datos custom)
+    Hive.registerAdapter(QuestionAdapter());
+    Hive.registerAdapter(UserProgressAdapter());
+    Hive.registerAdapter(DailyStatsAdapter());
+
+    // 👇 BLOQUE DE SEGURIDAD ANTI-PANTALLA NEGRA
+    // Intentamos abrir las cajas. Si falla por un bloqueo (.lock), capturamos el error.
+    try {
+      await Hive.openBox<Question>('questionsBox');
+      await Hive.openBox<UserProgress>('progressBox');
+      await Hive.openBox<DailyStats>('statsBox');
+    } catch (e) {
+      print("⚠️ Error crítico abriendo Hive (posible lock corrupto): $e");
+
+      // Si falla, intentamos borrar los archivos de la caja corrupta de la memoria y reabrir.
+      // Esto elimina los archivos .lock que causan que la app se cuelgue.
+      try {
+        await Hive.deleteBoxFromDisk('questionsBox'); // Solo si es necesario borrar datos corruptos
+        await Hive.deleteBoxFromDisk('progressBox');
+        await Hive.deleteBoxFromDisk('statsBox');
+      } catch (e2) {
+        print("Error intentando borrar cajas corruptas: $e2");
+      }
+
+      // Reintentamos abrir las cajas limpias
+      await Hive.openBox<Question>('questionsBox');
+      await Hive.openBox<UserProgress>('progressBox');
+      await Hive.openBox<DailyStats>('statsBox');
+    }
+
+    final progressBox = Hive.box<UserProgress>('progressBox');
+
+    // Inicialización de primera vez (Si la caja está vacía o se reseteó)
+    if (progressBox.isEmpty) {
+      progressBox.add(UserProgress(
+        dailyGoal: 5,
+        answeredToday: 0,
+        streak: 0,
+        lastPlayedDate: DateTime(2000, 1, 1),
+        notificationHour: 18,
+        notificationMinute: 0,
+        isDarkMode: false,
+        userName: '',
+        hiddenCategories: [],
+      ));
+    }
+
+    // Inicializamos notificaciones
+    await NotificationService.init();
+
+    // Reprogramamos la notificación al iniciar para "revivirla" si el sistema la mató
+    // Esto es CLAVE en Samsung/Xiaomi para que vuelvan a sonar
+    final userPrefs = progressBox.getAt(0)!;
+    await NotificationService.scheduleDaily(userPrefs.notificationHour, userPrefs.notificationMinute);
+
+  } catch (e, stack) {
+    // Si ocurre un error catastrófico que no pudimos manejar, lo imprimimos.
+    // En una app real, aquí podrías mandar el error a Crashlytics.
+    print("Error fatal en main: $e \n $stack");
   }
 
-  await NotificationService.init();
-  final userPrefs = progressBox.getAt(0)!;
-  await NotificationService.scheduleDaily(userPrefs.notificationHour, userPrefs.notificationMinute);
-
+  // 👇 runApp SIEMPRE debe ejecutarse al final, pase lo que pase con la BD.
   runApp(const QuizDailyApp());
 }
 
@@ -58,13 +99,36 @@ class QuizDailyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Verificamos si Hive se cargó correctamente. Si no, mostramos pantalla de carga.
+    // Esto evita la pantalla ROJA de error de Flutter.
+    if (!Hive.isBoxOpen('progressBox')) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text("Recuperando datos...", style: GoogleFonts.poppins()),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return ValueListenableBuilder(
       valueListenable: Hive.box<UserProgress>('progressBox').listenable(),
       builder: (context, Box<UserProgress> box, _) {
+        // Protección extra por si la caja está vacía tras un error crítico
+        if (box.isEmpty) {
+          box.add(UserProgress(dailyGoal: 5, answeredToday: 0, streak: 0, lastPlayedDate: DateTime(2000), userName: ''));
+        }
+
         final p = box.getAt(0);
         final isDark = p?.isDarkMode ?? false;
-
-        // 👇 Lógica para mostrar Onboarding si no hay nombre
         final bool showOnboarding = (p?.userName == null || p!.userName.isEmpty);
 
         return MaterialApp(
@@ -94,7 +158,6 @@ class QuizDailyApp extends StatelessWidget {
             appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0, centerTitle: false, titleTextStyle: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold), iconTheme: IconThemeData(color: Colors.white)),
           ),
 
-          // 👇 Decide la pantalla inicial
           home: showOnboarding ? const OnboardingScreen() : const HomeScreen(),
 
           routes: {
@@ -157,7 +220,6 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                // (El resto del build sigue igual que antes, Grid de menú...)
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   sliver: SliverGrid.count(

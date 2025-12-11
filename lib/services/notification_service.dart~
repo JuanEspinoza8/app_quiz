@@ -9,9 +9,8 @@ class NotificationService {
     // Inicializa zona horaria
     tz.initializeTimeZones();
 
-    // 👇 AQUÍ ESTABA EL ERROR: Cambiamos 'ic_launcher' por 'launcher_icon'
+    // Configuración inicial
     const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
-
     const initSettings = InitializationSettings(android: androidInit);
 
     await _notifications.initialize(initSettings);
@@ -22,6 +21,7 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
   }
+
 
   /// Muestra una notificación simple instantánea
   static Future<void> showNow(String title, String body) async {
@@ -63,10 +63,12 @@ class NotificationService {
       'Tenés preguntas pendientes hoy, ¡no pierdas tu racha! 🔥',
       scheduled,
       const NotificationDetails(android: androidDetails),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, // 👈 cambio clave
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+
   }
+
 }

@@ -5,14 +5,14 @@ import '../models/question.dart';
 import 'package:uuid/uuid.dart';
 
 class GeminiService {
-  static const String _apiKey = 'AIzaSyCfKhmdoSfOOADvGX23Q7u92GjndJlLSVQ'; // 👈 Tu API Key
+  static const String _apiKey = 'AIzaSyD738tJhB3ZiyAmCLQ38QGnSE2I9ycveNY';
 
   static Future<List<Question>> generateQuestions(
       String promptText, {
         required String userCategory,
         List<String>? avoidQuestions,
-        Uint8List? fileBytes, // 👈 Nuevo: Archivo en bytes
-        String? mimeType,     // 👈 Nuevo: Tipo de archivo (pdf, png, etc)
+        Uint8List? fileBytes,
+        String? mimeType,
       }) async {
 
     if (_apiKey.startsWith('TU_API') || _apiKey.isEmpty) {
