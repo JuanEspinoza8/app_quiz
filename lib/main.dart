@@ -20,6 +20,7 @@ import 'package:quiz_daily/screens/storage_error_screen.dart';
 import 'package:quiz_daily/services/notification_service.dart';
 import 'package:quiz_daily/services/storage_service.dart';
 import 'package:quiz_daily/theme/app_colors.dart';
+import 'package:quiz_daily/widgets/day_rollover_on_resume.dart';
 
 Future<void> main() async {
   // Aseguramos que el motor gráfico esté listo antes de cualquier lógica
@@ -74,7 +75,7 @@ Future<void> _start() async {
       ChangeNotifierProvider.value(value: questions),
       ChangeNotifierProvider.value(value: progress),
     ],
-    child: const QuizDailyApp(),
+    child: const DayRolloverOnResume(child: QuizDailyApp()),
   ));
 }
 
