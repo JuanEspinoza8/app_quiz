@@ -109,7 +109,7 @@ Sin la clave, la app funciona igual, pero el generador con IA muestra un error q
 > **Importante:** en una app cliente, cualquier valor que viaja en el APK (incluido un `--dart-define`) se puede extraer descompilándolo. `--dart-define` sirve para no subir la clave al repo, no para ocultarla. Por eso conviene restringirla en Google Cloud Console → *Credenciales*:
 >
 > - **Restricción de API:** solo *Generative Language API*. Funciona sin cambios en la app.
-> - **Restricción de aplicación Android** (nombre de paquete + huella SHA-1 del certificado de firma). Google valida esta restricción con los headers `X-Android-Package` y `X-Android-Cert`, que el SDK de Dart no envía solo. La app los agrega si se define `ANDROID_CERT_SHA1` en `env.json` (y `ANDROID_PACKAGE` si cambia el `applicationId`):
+> - **Restricción de aplicación Android** (nombre de paquete `io.github.juanespinoza8.quizdaily` + huella SHA-1 del certificado de firma). Google valida esta restricción con los headers `X-Android-Package` y `X-Android-Cert`, que el SDK de Dart no envía solo. La app los agrega si se define `ANDROID_CERT_SHA1` en `env.json` (y `ANDROID_PACKAGE` si cambia el `applicationId`):
 >
 >   ```json
 >   { "GEMINI_API_KEY": "...", "ANDROID_CERT_SHA1": "AA:BB:CC:..." }
@@ -139,7 +139,8 @@ La fecha se inyecta en `ProgressRepository`, así que los tests no dependen del 
 - **`google_generative_ai` está deprecado** por Google en favor de Firebase AI Logic. Migrar está pendiente.
 - **Fuente:** Poppins se descarga con `google_fonts` la primera vez que se abre la app. Sin conexión se usa la fuente del sistema.
 - **Imágenes:** se guarda la ruta del archivo que devuelve `image_picker`, que puede estar en la caché de la app. El respaldo JSON no incluye las imágenes.
-- **No está lista para publicar:** el `applicationId` es `com.example.quiz_daily` y el build de release se firma con la clave de debug.
+- **No está lista para publicar:** el build de release se firma con la clave de debug.
+- **Cambio de `applicationId`:** pasó de `com.example.quiz_daily` a `io.github.juanespinoza8.quizdaily`. Android la trata como otra app: para conservar los datos de una instalación anterior, crear un respaldo en la vieja y restaurarlo en la nueva.
 - **Tests de widgets parciales:** cubren el quiz, el Banco y el cambio de día; el resto de las pantallas no tiene.
 
 ## Autor

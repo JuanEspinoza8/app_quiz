@@ -41,7 +41,7 @@ class GeminiService {
 
   /// Opcionales: solo hacen falta si la clave está restringida a la app Android.
   static const String _androidPackage =
-      String.fromEnvironment('ANDROID_PACKAGE', defaultValue: 'com.example.quiz_daily');
+      String.fromEnvironment('ANDROID_PACKAGE', defaultValue: 'io.github.juanespinoza8.quizdaily');
   static const String _androidCertSha1 = String.fromEnvironment('ANDROID_CERT_SHA1');
 
   static bool get isConfigured => _apiKey.isNotEmpty;

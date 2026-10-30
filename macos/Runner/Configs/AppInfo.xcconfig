@@ -8,7 +8,7 @@
 PRODUCT_NAME = quiz_daily
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.quizDaily
+PRODUCT_BUNDLE_IDENTIFIER = io.github.juanespinoza8.quizdaily
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 Juan Espinoza. All rights reserved.
