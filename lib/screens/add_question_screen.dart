@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../data/question_repository.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 
 class AddQuestionScreen extends StatefulWidget {
   final Question? editQuestion;
@@ -19,6 +21,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   final _optionControllers = List.generate(4, (_) => TextEditingController());
   final _explanationController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _categoryFocusNode = FocusNode();
   int _correctIndex = 0;
   File? _selectedImage;
   List<String> _existingCategories = [];
@@ -26,13 +29,14 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   @override
   void initState() {
     super.initState();
-    final box = Hive.box<Question>('questionsBox');
-    _existingCategories = box.values.map((q) => q.category).toSet().toList();
+    _existingCategories = context.read<QuestionRepository>().categories;
 
     if (widget.editQuestion != null) {
       final q = widget.editQuestion!;
       _questionController.text = q.questionText;
-      for (int i = 0; i < 4; i++) if (i < q.options.length) _optionControllers[i].text = q.options[i];
+      for (int i = 0; i < 4 && i < q.options.length; i++) {
+        _optionControllers[i].text = q.options[i];
+      }
       _correctIndex = q.correctAnswerIndex;
       _categoryController.text = q.category;
       _explanationController.text = q.explanation ?? '';
@@ -40,9 +44,21 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _questionController.dispose();
+    for (final c in _optionControllers) {
+      c.dispose();
+    }
+    _explanationController.dispose();
+    _categoryController.dispose();
+    _categoryFocusNode.dispose();
+    super.dispose();
+  }
+
   void _save() {
     if (_questionController.text.isEmpty || _categoryController.text.isEmpty) return;
-    final box = Hive.box<Question>('questionsBox');
+    final repo = context.read<QuestionRepository>();
     final q = Question(
       id: widget.editQuestion?.id ?? const Uuid().v4(),
       questionText: _questionController.text.trim(),
@@ -54,12 +70,12 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       explanation: _explanationController.text.trim().isEmpty ? null : _explanationController.text.trim(),
       errorCount: widget.editQuestion?.errorCount ?? 0,
       totalAttempts: widget.editQuestion?.totalAttempts ?? 0,
+      correctCount: widget.editQuestion?.correctCount ?? 0,
     );
     if (widget.editQuestion != null) {
-      final idx = box.values.toList().indexOf(widget.editQuestion!);
-      if (idx != -1) box.putAt(idx, q);
+      repo.update(widget.editQuestion!, q);
     } else {
-      box.add(q);
+      repo.add(q);
     }
     Navigator.pop(context);
   }
@@ -89,12 +105,13 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                       children: [
                         Text("Categoría", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
+                        // Autocomplete usa directamente nuestro controller: no hace
+                        // falta copiar el texto con un listener en cada build.
                         Autocomplete<String>(
+                          textEditingController: _categoryController,
+                          focusNode: _categoryFocusNode,
                           optionsBuilder: (v) => _existingCategories.where((c) => c.toLowerCase().contains(v.text.toLowerCase())),
-                          onSelected: (val) => _categoryController.text = val,
                           fieldViewBuilder: (c, ctrl, n, _) {
-                            if (_categoryController.text.isNotEmpty && ctrl.text.isEmpty) ctrl.text = _categoryController.text;
-                            ctrl.addListener(() => _categoryController.text = ctrl.text);
                             return TextField(controller: ctrl, focusNode: n, decoration: _inputDeco('Historia...'));
                           },
                         ),
@@ -105,15 +122,15 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                   GestureDetector(
                     onTap: () async {
                       final p = await ImagePicker().pickImage(source: ImageSource.gallery);
-                      if(p!=null) setState(() => _selectedImage = File(p.path));
+                      if (p != null && mounted) setState(() => _selectedImage = File(p.path));
                     },
                     child: Container(
                       height: 80, width: 80,
                       margin: const EdgeInsets.only(top: 24),
                       decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                          color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
                           image: _selectedImage != null ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover) : null
                       ),
                       child: _selectedImage == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
@@ -127,24 +144,35 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
 
             Text("Opciones (Marca la correcta)", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey[600])),
             const SizedBox(height: 10),
-            ...List.generate(4, (i) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor, // ✅ Dinámico
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _correctIndex == i ? const Color(0xFF4ECDC4) : Colors.transparent, width: 2),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]
+            RadioGroup<int>(
+              groupValue: _correctIndex,
+              onChanged: (v) => setState(() => _correctIndex = v!),
+              child: Column(
+                children: List.generate(4, (i) => Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _correctIndex == i ? AppColors.teal : Colors.transparent, width: 2),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)]
+                  ),
+                  // Material transparente para que el efecto de toque se vea
+                  // por encima del fondo del Container.
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: RadioListTile<int>(
+                      value: i,
+                      activeColor: AppColors.teal,
+                      title: TextField(
+                          controller: _optionControllers[i],
+                          decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
+                          style: const TextStyle(fontSize: 14)
+                      ),
+                    ),
+                  ),
+                )),
               ),
-              child: RadioListTile<int>(
-                value: i, groupValue: _correctIndex, onChanged: (v) => setState(() => _correctIndex = v!),
-                activeColor: const Color(0xFF4ECDC4),
-                title: TextField(
-                    controller: _optionControllers[i],
-                    decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
-                    style: const TextStyle(fontSize: 14)
-                ),
-              ),
-            )),
+            ),
 
             const SizedBox(height: 20),
             _buildCard([
@@ -157,7 +185,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
             ElevatedButton(
               onPressed: _save,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
@@ -174,9 +202,9 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Theme.of(context).cardColor, // ✅ Dinámico
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))]
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
@@ -186,7 +214,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     return InputDecoration(
         hintText: hint,
         filled: true,
-        fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro y suave
+        fillColor: Colors.grey.withValues(alpha: 0.1),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.all(16)
     );

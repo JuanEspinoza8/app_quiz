@@ -1,19 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
-import '../models/question.dart';
-import '../models/user_progress.dart';
-import '../models/daily_stats.dart';
+import '../data/progress_repository.dart';
+import '../data/question_repository.dart';
 
 class DataSyncService {
-  static Future<String> exportFullBackup() async {
-    final qBox = Hive.box<Question>('questionsBox');
-    final pBox = Hive.box<UserProgress>('progressBox');
-    final sBox = Hive.box<DailyStats>('statsBox');
-
+  static Future<String> exportFullBackup({
+    required QuestionRepository questions,
+    required ProgressRepository progress,
+  }) async {
     // 1. Exportar Preguntas
-    final questionsData = qBox.values.map((q) => {
+    final questionsData = questions.all.map((q) => {
       "id": q.id,
       "text": q.questionText,
       "options": q.options,
@@ -24,21 +21,22 @@ class DataSyncService {
       "explanation": q.explanation,
       "errorCount": q.errorCount,
       "totalAttempts": q.totalAttempts,
+      "correctCount": q.correctCount,
     }).toList();
 
     // 2. Exportar Progreso Usuario
-    final p = pBox.getAt(0)!;
+    final p = progress.progress;
     final progressData = {
       "dailyGoal": p.dailyGoal,
       "streak": p.streak,
       "lastPlayed": p.lastPlayedDate.toIso8601String(),
       "notifHour": p.notificationHour,
       "notifMinute": p.notificationMinute,
-      // No exportamos answeredToday para que no se tranque si restauras otro día
+      // answeredToday no se exporta: al restaurar otro día no tiene sentido
     };
 
     // 3. Exportar Estadísticas Diarias
-    final statsData = sBox.values.map((s) => {
+    final statsData = progress.dailyStats.map((s) => {
       "date": s.date.toIso8601String(),
       "answered": s.questionsAnswered,
       "correct": s.correctAnswers,

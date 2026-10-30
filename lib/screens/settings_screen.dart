@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
+import '../data/progress_repository.dart';
+import '../data/question_repository.dart';
 import '../models/user_progress.dart';
-import '../models/question.dart'; // Importamos modelo Question
+import '../theme/app_colors.dart';
 import '../services/notification_service.dart';
 import '../services/data_sync_service.dart';
 import '../services/import_service.dart';
@@ -18,18 +20,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late Box<UserProgress> _progressBox;
-  late Box<Question> _questionsBox;
-
-  @override
-  void initState() {
-    super.initState();
-    _progressBox = Hive.box<UserProgress>('progressBox');
-    _questionsBox = Hive.box<Question>('questionsBox');
-  }
-
-  // ... (Tus métodos _pickTime, _backupData, _restoreData se mantienen igual) ...
-  // Solo copio los nuevos para ahorrar espacio, pégalos dentro de la clase
+  ProgressRepository get _progress => context.read<ProgressRepository>();
+  QuestionRepository get _questions => context.read<QuestionRepository>();
 
   Future<void> _pickTime(UserProgress p) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -39,39 +31,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(primary: Color(0xFF6C63FF)),
+            colorScheme: const ColorScheme.light(primary: AppColors.primary),
           ),
           child: child!,
         );
       },
     );
 
-    if (picked != null) {
-      p.notificationHour = picked.hour;
-      p.notificationMinute = picked.minute;
-      await p.save();
+    if (picked != null && mounted) {
+      await _progress.setReminderTime(picked.hour, picked.minute);
       await NotificationService.scheduleDaily(picked.hour, picked.minute);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notificación ajustada a las ${picked.format(context)} 📅')));
-      setState(() {});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notificación ajustada a las ${picked.format(context)} 📅')));
     }
   }
 
   Future<void> _backupData() async {
-    final path = await DataSyncService.exportFullBackup();
+    final path = await DataSyncService.exportFullBackup(questions: _questions, progress: _progress);
     await Share.shareXFiles([XFile(path)], text: "Respaldo Quiz Daily 🔒");
   }
 
   Future<void> _restoreData() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
     if (result == null) return;
+    if (!mounted) return;
     final file = File(result.files.single.path!);
-    final msg = await ImportService.importBackup(file);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-    setState(() {});
+    String msg;
+    try {
+      msg = await ImportService.importBackup(file, questions: _questions, progress: _progress);
+    } catch (e) {
+      msg = 'No se pudo leer el respaldo: $e';
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _showCategoryFilter(UserProgress p) {
-    final allCategories = _questionsBox.values.map((q) => q.category).toSet().toList();
+    final allCategories = _questions.categories;
 
     showModalBottomSheet(
       context: context,
@@ -98,16 +94,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return SwitchListTile(
                           title: Text(cat),
                           value: !isHidden, // Si NO está oculta, está activa
-                          activeColor: const Color(0xFF6C63FF),
+                          activeThumbColor: AppColors.primary,
                           onChanged: (val) {
-                            setModalState(() {
-                              if (val) {
-                                p.hiddenCategories.remove(cat);
-                              } else {
-                                p.hiddenCategories.add(cat);
-                              }
-                            });
-                            p.save(); // Guardamos cambios en tiempo real
+                            _progress.setCategoryHidden(cat, !val);
+                            setModalState(() {});
                           },
                         );
                       },
@@ -124,85 +114,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: _progressBox.listenable(),
-      builder: (context, Box<UserProgress> box, _) {
-        final p = box.getAt(0)!;
-        final time = TimeOfDay(hour: p.notificationHour, minute: p.notificationMinute);
-        final isDark = p.isDarkMode;
+    final p = context.watch<ProgressRepository>().progress;
+    final time = TimeOfDay(hour: p.notificationHour, minute: p.notificationMinute);
+    final isDark = p.isDarkMode;
 
-        return Scaffold(
-          appBar: AppBar(title: const Text("Configuración")),
-          body: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _buildSectionHeader("Personalización"),
-              _buildCard(context, [
-                _buildTile(
-                  title: "Materias y Temas",
-                  subtitle: "Elige qué quieres estudiar",
-                  icon: Icons.filter_list_rounded,
-                  color: Colors.blueAccent,
-                  onTap: () => _showCategoryFilter(p),
-                ),
-                const Divider(height: 1, indent: 60),
-                SwitchListTile(
-                  title: const Text("Modo Oscuro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  subtitle: Text(isDark ? "Activado 🌙" : "Desactivado ☀️", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                  secondary: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: const Color(0xFF6C63FF).withOpacity(0.1), shape: BoxShape.circle),
-                    child: Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: const Color(0xFF6C63FF), size: 24),
-                  ),
-                  value: isDark,
-                  activeColor: const Color(0xFF6C63FF),
-                  onChanged: (val) {
-                    p.isDarkMode = val;
-                    p.save();
-                  },
-                ),
-              ]),
+    return Scaffold(
+      appBar: AppBar(title: const Text("Configuración")),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _buildSectionHeader("Personalización"),
+          _buildCard(context, [
+            _buildTile(
+              title: "Materias y Temas",
+              subtitle: "Elige qué quieres estudiar",
+              icon: Icons.filter_list_rounded,
+              color: Colors.blueAccent,
+              onTap: () => _showCategoryFilter(p),
+            ),
+            const Divider(height: 1, indent: 60),
+            SwitchListTile(
+              title: const Text("Modo Oscuro", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              subtitle: Text(isDark ? "Activado 🌙" : "Desactivado ☀️", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+              secondary: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: AppColors.primary, size: 24),
+              ),
+              value: isDark,
+              activeThumbColor: AppColors.primary,
+              onChanged: (val) => _progress.setDarkMode(val),
+            ),
+          ]),
 
-              const SizedBox(height: 24),
-              _buildSectionHeader("Notificaciones"),
-              _buildCard(context, [
-                _buildTile(
-                  title: "Recordatorio Diario",
-                  subtitle: "Te avisaremos a las ${time.format(context)}",
-                  icon: Icons.notifications_active_rounded,
-                  color: const Color(0xFFFFBC42),
-                  trailing: const Icon(Icons.edit, color: Colors.grey),
-                  onTap: () => _pickTime(p),
-                ),
-              ]),
+          const SizedBox(height: 24),
+          _buildSectionHeader("Notificaciones"),
+          _buildCard(context, [
+            _buildTile(
+              title: "Recordatorio Diario",
+              subtitle: "Te avisaremos a las ${time.format(context)}",
+              icon: Icons.notifications_active_rounded,
+              color: AppColors.amber,
+              trailing: const Icon(Icons.edit, color: Colors.grey),
+              onTap: () => _pickTime(p),
+            ),
+          ]),
 
-              const SizedBox(height: 24),
-              _buildSectionHeader("Seguridad de Datos"),
-              _buildCard(context, [
-                _buildTile(
-                  title: "Crear Respaldo",
-                  subtitle: "Guarda todo tu progreso",
-                  icon: Icons.cloud_upload_rounded,
-                  color: const Color(0xFF4ECDC4),
-                  onTap: _backupData,
-                ),
-                const Divider(height: 1, indent: 60),
-                _buildTile(
-                  title: "Restaurar Copia",
-                  subtitle: "Recupera tus datos",
-                  icon: Icons.cloud_download_rounded,
-                  color: const Color(0xFF6C63FF),
-                  onTap: _restoreData,
-                ),
-              ]),
-            ],
-          ),
-        );
-      },
+          const SizedBox(height: 24),
+          _buildSectionHeader("Seguridad de Datos"),
+          _buildCard(context, [
+            _buildTile(
+              title: "Crear Respaldo",
+              subtitle: "Guarda todo tu progreso",
+              icon: Icons.cloud_upload_rounded,
+              color: AppColors.teal,
+              onTap: _backupData,
+            ),
+            const Divider(height: 1, indent: 60),
+            _buildTile(
+              title: "Restaurar Copia",
+              subtitle: "Recupera tus datos",
+              icon: Icons.cloud_download_rounded,
+              color: AppColors.primary,
+              onTap: _restoreData,
+            ),
+          ]),
+        ],
+      ),
     );
   }
 
-  // Widgets auxiliares (iguales a antes)
+  // Widgets auxiliares
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),
@@ -215,9 +197,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      // Material transparente para que los ListTile muestren el efecto de
+      // toque por encima del fondo del Container.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      ),
     );
   }
 
@@ -226,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
         child: Icon(icon, color: color, size: 24),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),

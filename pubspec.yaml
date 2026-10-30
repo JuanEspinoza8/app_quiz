@@ -1,5 +1,5 @@
 name: quiz_daily
-description: "A new Flutter project."
+description: "QuizDaily+: app de microaprendizaje con quizzes diarios, rachas, estadísticas y preguntas generadas con Gemini."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -38,17 +38,19 @@ dependencies:
   file_picker: ^8.0.6
   share_plus: ^7.2.2
 
-
-
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   uuid: ^4.4.0
   image_picker: ^1.2.0
   google_generative_ai: ^0.4.7
+  http: ^1.5.0
   intl: ^0.20.2
   fl_chart: ^1.1.1
   google_fonts: ^6.3.2
+  flutter_timezone: ^5.1.1
+  timezone: ^0.9.4
+  provider: ^6.1.5+1
 
 
 dev_dependencies:
@@ -58,19 +60,19 @@ dev_dependencies:
     sdk: flutter
   flutter_launcher_icons: "^0.13.1"
 
-flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: true
-  image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#6C63FF" # Color de fondo (opcional)
-  adaptive_icon_foreground: "assets/icon/icon.png"
-
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#6C63FF" # Color de fondo (opcional)
+  adaptive_icon_foreground: "assets/icon/icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

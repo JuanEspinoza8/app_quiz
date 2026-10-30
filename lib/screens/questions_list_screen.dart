@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../data/question_repository.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 import 'add_question_screen.dart';
 
 class QuestionsListScreen extends StatefulWidget {
@@ -18,11 +19,24 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
   bool _showOnlyHard = false;
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final box = Hive.box<Question>('questionsBox');
-    final Set<String> categoriesSet = {'Todas'};
-    for (var q in box.values) categoriesSet.add(q.category);
-    final List<String> categories = categoriesSet.toList();
+    final repo = context.watch<QuestionRepository>();
+    final List<String> categories = {'Todas', ...repo.categories}.toList();
+    // Si se borró la última pregunta de la materia filtrada, se vuelve a "Todas".
+    final selectedCategory = categories.contains(_selectedCategory) ? _selectedCategory : 'Todas';
+    final search = _searchController.text.toLowerCase();
+    final filteredQuestions = repo.all.where((q) {
+      final matchText = q.questionText.toLowerCase().contains(search);
+      final matchCategory = selectedCategory == 'Todas' || q.category == selectedCategory;
+      final matchHard = !_showOnlyHard || q.errorCount > 0;
+      return matchText && matchCategory && matchHard;
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Banco de Preguntas')),
@@ -33,15 +47,15 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor, // ✅ Dinámico
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Buscar...',
-                  hintStyle: TextStyle(color: Colors.grey.withOpacity(0.7)),
+                  hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.7)),
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -64,32 +78,32 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                   label: const Text('⚠️ Difíciles'),
                   selected: _showOnlyHard,
                   onSelected: (val) => setState(() => _showOnlyHard = val),
-                  backgroundColor: Theme.of(context).cardColor, // ✅ Dinámico
-                  selectedColor: const Color(0xFFFF6584).withOpacity(0.2),
+                  backgroundColor: Theme.of(context).cardColor,
+                  selectedColor: AppColors.pink.withValues(alpha: 0.2),
                   labelStyle: TextStyle(
-                      color: _showOnlyHard ? const Color(0xFFFF6584) : Theme.of(context).textTheme.bodyMedium?.color
+                      color: _showOnlyHard ? AppColors.pink : Theme.of(context).textTheme.bodyMedium?.color
                   ),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: _showOnlyHard ? const Color(0xFFFF6584) : Colors.grey.withOpacity(0.2))
+                      side: BorderSide(color: _showOnlyHard ? AppColors.pink : Colors.grey.withValues(alpha: 0.2))
                   ),
                   showCheckmark: false,
                 ),
                 const SizedBox(width: 8),
                 ...categories.map((cat) {
-                  final isSelected = _selectedCategory == cat;
+                  final isSelected = selectedCategory == cat;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
                       label: Text(cat),
                       selected: isSelected,
                       onSelected: (selected) { if (selected) setState(() => _selectedCategory = cat); },
-                      backgroundColor: Theme.of(context).cardColor, // ✅ Dinámico
-                      selectedColor: const Color(0xFF6C63FF),
+                      backgroundColor: Theme.of(context).cardColor,
+                      selectedColor: AppColors.primary,
                       labelStyle: TextStyle(color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.withOpacity(0.2))
+                          side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.withValues(alpha: 0.2))
                       ),
                       showCheckmark: false,
                     ),
@@ -103,30 +117,9 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
 
           // Lista de Preguntas
           Expanded(
-            child: ValueListenableBuilder(
-              valueListenable: box.listenable(),
-              builder: (context, Box<Question> box, _) {
-                final filteredQuestions = box.values.where((q) {
-                  final matchText = q.questionText.toLowerCase().contains(_searchController.text.toLowerCase());
-                  final matchCategory = _selectedCategory == 'Todas' || q.category == _selectedCategory;
-                  final matchHard = !_showOnlyHard || q.errorCount > 0;
-                  return matchText && matchCategory && matchHard;
-                }).toList();
-
-                if (filteredQuestions.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text('No encontramos nada', style: TextStyle(color: Colors.grey.shade500)),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
+            child: filteredQuestions.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   itemCount: filteredQuestions.length,
                   itemBuilder: (context, index) {
@@ -134,47 +127,86 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor, // ✅ Dinámico
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: _buildLeadingIcon(question),
-                        title: Text(
-                          question.questionText,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.1), // ✅ Fondo neutro
-                                    borderRadius: BorderRadius.circular(6)
-                                ),
-                                child: Text(question.category, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                              ),
-                              if (question.errorCount > 0) ...[
-                                const SizedBox(width: 8),
-                                Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red.shade300),
-                                Text(" ${question.errorCount}", style: TextStyle(fontSize: 11, color: Colors.red.shade300)),
-                              ]
-                            ],
+                      // ListTile dibuja el efecto de toque en el Material más cercano:
+                      // sin este, el fondo del Container lo taparía.
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: ListTile(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: _buildLeadingIcon(question),
+                          title: Text(
+                            question.questionText,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6)
+                                  ),
+                                  child: Text(question.category, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                                ),
+                                if (question.errorCount > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red.shade300),
+                                  Text(" ${question.errorCount}", style: TextStyle(fontSize: 11, color: Colors.red.shade300)),
+                                ]
+                              ],
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete_outline, color: Colors.red.shade300),
+                            tooltip: 'Borrar pregunta',
+                            onPressed: () => _delete(question),
+                          ),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddQuestionScreen(editQuestion: question))),
                         ),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddQuestionScreen(editQuestion: question))),
                       ),
                     );
                   },
-                );
-              },
-            ),
+                ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Borra sin pedir confirmación y ofrece deshacer desde el SnackBar.
+  Future<void> _delete(Question question) async {
+    final repo = context.read<QuestionRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+    final key = await repo.delete(question);
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: const Text('Pregunta borrada'),
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () => repo.restore(key, question),
+        ),
+      ));
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text('No encontramos nada', style: TextStyle(color: Colors.grey.shade500)),
         ],
       ),
     );
@@ -193,10 +225,10 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
     return Container(
       width: 50, height: 50,
       decoration: BoxDecoration(
-        color: const Color(0xFF6C63FF).withOpacity(0.1),
+        color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(Icons.quiz, color: Color(0xFF6C63FF)),
+      child: const Icon(Icons.quiz, color: AppColors.primary),
     );
   }
 }

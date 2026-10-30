@@ -1,41 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../data/progress_repository.dart';
+import '../data/question_repository.dart';
 import '../models/question.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
+import '../theme/app_colors.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final progressBox = Hive.box<UserProgress>('progressBox');
-    final questionBox = Hive.box<Question>('questionsBox');
-    final statsBox = Hive.box<DailyStats>('statsBox');
+    final progressRepo = context.watch<ProgressRepository>();
+    final userProgress = progressRepo.progress;
+    final allQuestions = context.watch<QuestionRepository>().all;
 
-    final userProgress = progressBox.getAt(0)!;
-    final allQuestions = questionBox.values.toList();
-
-    int totalAnswered = 0;
-    int totalErrors = 0;
     Map<String, List<Question>> questionsByCategory = {};
-
     for (var q in allQuestions) {
-      if (q.totalAttempts > 0) {
-        totalAnswered += q.totalAttempts;
-        totalErrors += q.errorCount;
-      }
-      if (!questionsByCategory.containsKey(q.category)) {
-        questionsByCategory[q.category] = [];
-      }
-      questionsByCategory[q.category]!.add(q);
+      questionsByCategory.putIfAbsent(q.category, () => []).add(q);
     }
 
-    final totalCorrect = totalAnswered - totalErrors;
-    final globalAccuracy = totalAnswered == 0 ? 0.0 : (totalCorrect / totalAnswered);
+    // Los aciertos salen del historial diario. errorCount no sirve para esto:
+    // baja con cada acierto porque es el peso del repaso inteligente.
+    final totals = progressRepo.totals;
+    final totalAnswered = totals.answered;
+    final globalAccuracy = totalAnswered == 0 ? 0.0 : totals.correct / totalAnswered;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi Progreso')),
@@ -53,14 +46,14 @@ class ProfileScreen extends StatelessWidget {
             Text("Tu semana", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Container(
-              height: 250, // 👈 AUMENTAMOS UN POCO LA ALTURA TOTAL
+              height: 250,
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
-              child: _buildWeeklyChart(statsBox, context),
+              child: _buildWeeklyChart(progressRepo, context),
             ),
 
             const SizedBox(height: 30),
@@ -89,9 +82,9 @@ class ProfileScreen extends StatelessWidget {
       children: [
         Expanded(child: _statCard(context, "Racha", "${progress.streak} días", Icons.local_fire_department, Colors.orange)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard(context, "Total", "$totalAnswered", Icons.check_circle_outline, const Color(0xFF6C63FF))),
+        Expanded(child: _statCard(context, "Total", "$totalAnswered", Icons.check_circle_outline, AppColors.primary)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard(context, "Precisión", "${(accuracy * 100).toStringAsFixed(0)}%", Icons.pie_chart_outline, const Color(0xFF4ECDC4))),
+        Expanded(child: _statCard(context, "Precisión", "${(accuracy * 100).toStringAsFixed(0)}%", Icons.pie_chart_outline, AppColors.teal)),
       ],
     );
   }
@@ -102,7 +95,7 @@ class ProfileScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -115,21 +108,14 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklyChart(Box<DailyStats> statsBox, BuildContext context) {
+  Widget _buildWeeklyChart(ProgressRepository progress, BuildContext context) {
     final now = DateTime.now();
     final List<DailyStats?> weekData = [];
     final List<String> weekDays = [];
 
     for (int i = 6; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      try {
-        final stat = statsBox.values.firstWhere(
-              (s) => s.date.year == date.year && s.date.month == date.month && s.date.day == date.day,
-        );
-        weekData.add(stat);
-      } catch (e) {
-        weekData.add(null);
-      }
+      final date = DateTime(now.year, now.month, now.day - i);
+      weekData.add(progress.statsFor(date));
       weekDays.add(DateFormat.E('es').format(date).substring(0, 1).toUpperCase());
     }
 
@@ -138,14 +124,14 @@ class ProfileScreen extends StatelessWidget {
         alignment: BarChartAlignment.spaceAround,
         maxY: 20,
         barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(getTooltipColor: (_) => const Color(0xFF6C63FF)),
+          touchTooltipData: BarTouchTooltipData(getTooltipColor: (_) => AppColors.primary),
         ),
         titlesData: FlTitlesData(
           show: true,
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40, // 👈 ESTO ES LO QUE FALTABA: Espacio reservado para las letras
+              reservedSize: 40, // Espacio para la inicial de cada día
               getTitlesWidget: (val, _) => Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Text(weekDays[val.toInt()], style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
@@ -166,12 +152,12 @@ class ProfileScreen extends StatelessWidget {
             barRods: [
               BarChartRodData(
                 toY: total == 0 ? 0.5 : total,
-                color: Colors.grey.withOpacity(0.2),
+                color: Colors.grey.withValues(alpha: 0.2),
                 width: 14,
                 borderRadius: BorderRadius.circular(4),
                 rodStackItems: [
-                  BarChartRodStackItem(0, correct, const Color(0xFF6C63FF)),
-                  BarChartRodStackItem(correct, total, const Color(0xFF6C63FF).withOpacity(0.3)),
+                  BarChartRodStackItem(0, correct, AppColors.primary),
+                  BarChartRodStackItem(correct, total, AppColors.primary.withValues(alpha: 0.3)),
                 ],
               ),
             ],
@@ -189,13 +175,13 @@ class ProfileScreen extends StatelessWidget {
         final category = entry.key;
         final questions = entry.value;
         int attempts = 0;
-        int errors = 0;
+        int correct = 0;
         for (var q in questions) {
           attempts += q.totalAttempts;
-          errors += q.errorCount;
+          correct += q.correctCount;
         }
         if (attempts == 0) return const SizedBox.shrink();
-        final accuracy = (attempts - errors) / attempts;
+        final accuracy = correct / attempts;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -215,7 +201,7 @@ class ProfileScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: accuracy,
-                  backgroundColor: Colors.grey.withOpacity(0.1),
+                  backgroundColor: Colors.grey.withValues(alpha: 0.1),
                   color: _getColorForAccuracy(accuracy),
                   minHeight: 8,
                 ),
@@ -228,9 +214,9 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Color _getColorForAccuracy(double accuracy) {
-    if (accuracy >= 0.8) return const Color(0xFF4ECDC4);
+    if (accuracy >= 0.8) return AppColors.teal;
     if (accuracy >= 0.5) return Colors.orangeAccent;
-    return const Color(0xFFFF6584);
+    return AppColors.pink;
   }
 
   Widget _buildAchievementsGrid(BuildContext context, UserProgress p, int totalAnswered, double accuracy, int totalQuestions) {
@@ -258,11 +244,11 @@ class ProfileScreen extends StatelessWidget {
           triggerMode: TooltipTriggerMode.tap,
           child: Container(
             decoration: BoxDecoration(
-              color: isUnlocked ? const Color(0xFFFFBC42) : Theme.of(context).cardColor,
+              color: isUnlocked ? AppColors.amber : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: isUnlocked
-                  ? [BoxShadow(color: const Color(0xFFFFBC42).withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))]
-                  : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                  ? [BoxShadow(color: AppColors.amber.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
+                  : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

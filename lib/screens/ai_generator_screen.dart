@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../data/question_repository.dart';
 import '../services/gemini_service.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 
 class AiGeneratorScreen extends StatefulWidget {
   const AiGeneratorScreen({super.key});
@@ -17,6 +19,7 @@ class AiGeneratorScreen extends StatefulWidget {
 class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
   final _textController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _categoryFocusNode = FocusNode();
 
   bool _isLoading = false;
   List<Question> _generatedQuestions = [];
@@ -28,21 +31,30 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
   @override
   void initState() {
     super.initState();
-    final box = Hive.box<Question>('questionsBox');
-    _existingCategories = box.values.map((q) => q.category).toSet().toList();
+    _existingCategories = context.read<QuestionRepository>().categories;
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _categoryController.dispose();
+    _categoryFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'], withData: true);
-    if (result != null) {
+    if (result != null && mounted) {
       final file = result.files.single;
       setState(() {
         _attachedFileName = file.name;
         _attachedFileBytes = file.bytes ?? (file.path != null ? File(file.path!).readAsBytesSync() : null);
-        final ext = file.extension?.toLowerCase();
-        if (ext == 'pdf') _attachedMimeType = 'application/pdf';
-        else if (ext == 'png') _attachedMimeType = 'image/png';
-        else if (ext == 'jpg' || ext == 'jpeg') _attachedMimeType = 'image/jpeg';
+        _attachedMimeType = switch (file.extension?.toLowerCase()) {
+          'pdf' => 'application/pdf',
+          'png' => 'image/png',
+          'jpg' || 'jpeg' => 'image/jpeg',
+          _ => null,
+        };
       });
     }
   }
@@ -68,59 +80,43 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
         fileBytes: _attachedFileBytes,
         mimeType: _attachedMimeType,
       );
+      // El usuario puede haber salido de la pantalla mientras esperaba.
+      if (!mounted) return;
       setState(() {
-        if (append) _generatedQuestions.addAll(newQuestions);
-        else _generatedQuestions = newQuestions;
+        if (append) {
+          _generatedQuestions.addAll(newQuestions);
+        } else {
+          _generatedQuestions = newQuestions;
+        }
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _editQuestionLocal(int index) {
-    final q = _generatedQuestions[index];
-    final questionCtrl = TextEditingController(text: q.questionText);
-    final explanationCtrl = TextEditingController(text: q.explanation);
-    final optionCtrls = List.generate(4, (i) => TextEditingController(text: q.options[i]));
-    int tempCorrectIndex = q.correctAnswerIndex;
-
-    showDialog(
+  Future<void> _editQuestionLocal(int index) async {
+    final edited = await showDialog<Question>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text("Editar"),
-            content: SingleChildScrollView(
-              child: Column(children: [
-                TextField(controller: questionCtrl, decoration: const InputDecoration(labelText: "Pregunta")),
-                const SizedBox(height: 10),
-                ...List.generate(4, (i) => Row(children: [Radio<int>(value: i, groupValue: tempCorrectIndex, onChanged: (v)=>setDialogState(()=>tempCorrectIndex=v!)), Expanded(child: TextField(controller: optionCtrls[i]))])),
-                TextField(controller: explanationCtrl, decoration: const InputDecoration(labelText: "Explicación")),
-              ]),
-            ),
-            actions: [
-              TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancelar")),
-              ElevatedButton(onPressed: () {
-                setState(() => _generatedQuestions[index] = Question(id: q.id, questionText: questionCtrl.text, options: optionCtrls.map((c)=>c.text).toList(), correctAnswerIndex: tempCorrectIndex, category: _categoryController.text, createdAt: q.createdAt, explanation: explanationCtrl.text, errorCount: 0, totalAttempts: 0));
-                Navigator.pop(context);
-              }, child: const Text("Guardar"))
-            ],
-          );
-        },
-      ),
+      builder: (_) => _EditGeneratedQuestionDialog(question: _generatedQuestions[index]),
     );
+    if (edited != null && mounted) {
+      setState(() => _generatedQuestions[index] = edited);
+    }
   }
 
   Future<void> _saveAll() async {
-    final box = Hive.box<Question>('questionsBox');
-    for (var q in _generatedQuestions) await box.add(q);
-    if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅'))); Navigator.pop(context); }
+    await context.read<QuestionRepository>().addAll(_generatedQuestions);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅')));
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(title: const Text('Generar con IA ✨')),
       body: Column(
@@ -134,27 +130,28 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor, // ✅ Dinámico
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(24),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))]
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text("1. Categoría", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(height: 8),
+                        // Autocomplete usa directamente nuestro controller: no hace
+                        // falta copiar el texto con un listener en cada build.
                         Autocomplete<String>(
+                          textEditingController: _categoryController,
+                          focusNode: _categoryFocusNode,
                           optionsBuilder: (v) => _existingCategories.where((c) => c.toLowerCase().contains(v.text.toLowerCase())),
-                          onSelected: (val) => _categoryController.text = val,
                           fieldViewBuilder: (context, controller, node, _) {
-                            if (_categoryController.text.isNotEmpty && controller.text.isEmpty) controller.text = _categoryController.text;
-                            controller.addListener(() => _categoryController.text = controller.text);
                             return TextField(
                               controller: controller, focusNode: node,
                               decoration: InputDecoration(
                                   hintText: 'Ej: Biología...',
                                   filled: true,
-                                  fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                                  fillColor: Colors.grey.withValues(alpha: 0.1),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                               ),
                             );
@@ -172,8 +169,27 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                           Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: Colors.deepPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                            child: Row(children: [const Icon(Icons.check_circle, color: Colors.deepPurple, size: 20), const SizedBox(width: 8), Expanded(child: Text(_attachedFileName!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple), overflow: TextOverflow.ellipsis)), IconButton(onPressed: () => setState(() { _attachedFileName=null; _attachedFileBytes=null; }), icon: const Icon(Icons.close, size: 18))]),
+                            decoration: BoxDecoration(color: Colors.deepPurple.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                            child: Row(children: [
+                              const Icon(Icons.check_circle, color: Colors.deepPurple, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _attachedFileName!,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Quitar archivo',
+                                onPressed: () => setState(() {
+                                  _attachedFileName = null;
+                                  _attachedFileBytes = null;
+                                  _attachedMimeType = null;
+                                }),
+                                icon: const Icon(Icons.close, size: 18),
+                              ),
+                            ]),
                           ),
                         TextField(
                           controller: _textController,
@@ -181,7 +197,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                           decoration: InputDecoration(
                               hintText: 'Pega aquí tus apuntes...',
                               filled: true,
-                              fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                              fillColor: Colors.grey.withValues(alpha: 0.1),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                           ),
                         ),
@@ -199,7 +215,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                       icon: Icon(_generatedQuestions.isEmpty ? Icons.auto_awesome : Icons.add),
                       label: Text(_generatedQuestions.isEmpty ? 'Generar Preguntas' : 'Generar +5 Más'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _generatedQuestions.isEmpty ? const Color(0xFF6C63FF) : const Color(0xFF4ECDC4),
+                        backgroundColor: _generatedQuestions.isEmpty ? AppColors.primary : AppColors.teal,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -222,10 +238,10 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
-                        color: Theme.of(context).cardColor, // ✅ Dinámico
+                        color: Theme.of(context).cardColor,
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
-                          leading: CircleAvatar(backgroundColor: Colors.deepPurple.withOpacity(0.1), child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),
+                          leading: CircleAvatar(backgroundColor: Colors.deepPurple.withValues(alpha: 0.1), child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),
                           title: Text(q.questionText, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text("Resp: ${q.options[q.correctAnswerIndex]}", style: TextStyle(color: Colors.grey[600])),
                           trailing: const Icon(Icons.edit, size: 18, color: Colors.grey),
@@ -236,7 +252,12 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: _saveAll,
-                      style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87, foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? Colors.white : Colors.black87,
+                        foregroundColor: isDark ? Colors.black : Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
                       child: const Text("GUARDAR TODO"),
                     )
                   ]
@@ -246,6 +267,84 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Diálogo para corregir una pregunta generada antes de guardarla. Es un
+/// widget propio para poder liberar sus controllers en dispose().
+class _EditGeneratedQuestionDialog extends StatefulWidget {
+  final Question question;
+  const _EditGeneratedQuestionDialog({required this.question});
+
+  @override
+  State<_EditGeneratedQuestionDialog> createState() => _EditGeneratedQuestionDialogState();
+}
+
+class _EditGeneratedQuestionDialogState extends State<_EditGeneratedQuestionDialog> {
+  late final TextEditingController _questionCtrl;
+  late final TextEditingController _explanationCtrl;
+  late final List<TextEditingController> _optionCtrls;
+  late int _correctIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.question;
+    _questionCtrl = TextEditingController(text: q.questionText);
+    _explanationCtrl = TextEditingController(text: q.explanation);
+    _optionCtrls = [for (final option in q.options) TextEditingController(text: option)];
+    _correctIndex = q.correctAnswerIndex;
+  }
+
+  @override
+  void dispose() {
+    _questionCtrl.dispose();
+    _explanationCtrl.dispose();
+    for (final c in _optionCtrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _save() {
+    final q = widget.question;
+    final explanation = _explanationCtrl.text.trim();
+    Navigator.pop(
+      context,
+      Question(
+        id: q.id,
+        questionText: _questionCtrl.text.trim(),
+        options: _optionCtrls.map((c) => c.text.trim()).toList(),
+        correctAnswerIndex: _correctIndex,
+        category: q.category,
+        createdAt: q.createdAt,
+        explanation: explanation.isEmpty ? null : explanation,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Editar"),
+      content: SingleChildScrollView(
+        child: RadioGroup<int>(
+          groupValue: _correctIndex,
+          onChanged: (v) => setState(() => _correctIndex = v!),
+          child: Column(children: [
+            TextField(controller: _questionCtrl, decoration: const InputDecoration(labelText: "Pregunta")),
+            const SizedBox(height: 10),
+            for (int i = 0; i < _optionCtrls.length; i++)
+              Row(children: [Radio<int>(value: i), Expanded(child: TextField(controller: _optionCtrls[i]))]),
+            TextField(controller: _explanationCtrl, decoration: const InputDecoration(labelText: "Explicación")),
+          ]),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+        ElevatedButton(onPressed: _save, child: const Text("Guardar")),
+      ],
     );
   }
 }

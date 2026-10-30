@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:hive/hive.dart';
+import '../data/progress_repository.dart';
+import '../data/question_repository.dart';
 import '../models/question.dart';
-import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
 
 class ImportService {
-  static Future<String> importBackup(File file) async {
+  static Future<String> importBackup(
+    File file, {
+    required QuestionRepository questions,
+    required ProgressRepository progress,
+  }) async {
     final content = await file.readAsString();
     dynamic jsonData = jsonDecode(content);
-
-    final qBox = Hive.box<Question>('questionsBox');
-    final pBox = Hive.box<UserProgress>('progressBox');
-    final sBox = Hive.box<DailyStats>('statsBox');
 
     int questionsAdded = 0;
 
@@ -34,7 +34,7 @@ class ImportService {
     // 1. IMPORTAR PREGUNTAS
     for (var item in questionsList) {
       // Evitamos duplicados por ID
-      if (qBox.values.any((q) => q.id == item['id'])) continue;
+      if (questions.containsId(item['id'])) continue;
 
       final q = Question(
         id: item['id'],
@@ -47,39 +47,35 @@ class ImportService {
         explanation: item['explanation'],
         errorCount: item['errorCount'] ?? 0,
         totalAttempts: item['totalAttempts'] ?? 0,
+        correctCount: item['correctCount'] ?? 0,
       );
-      await qBox.add(q);
+      await questions.add(q);
       questionsAdded++;
     }
 
     // 2. IMPORTAR PROGRESO (Si existe en el archivo)
     if (progressMap != null) {
-      final p = pBox.getAt(0)!;
-      // Solo restauramos la racha y configuración, NO sobreescribimos la fecha de hoy
-      p.dailyGoal = progressMap['dailyGoal'] ?? 3;
-      p.streak = progressMap['streak'] ?? 0;
-      p.notificationHour = progressMap['notifHour'] ?? 18;
-      p.notificationMinute = progressMap['notifMinute'] ?? 0;
-
-      // Opcional: Restaurar última fecha jugada
-      if (progressMap['lastPlayed'] != null) {
-        p.lastPlayedDate = DateTime.parse(progressMap['lastPlayed']);
-      }
-      await p.save();
+      final lastPlayed = progressMap['lastPlayed'];
+      await progress.restoreFromBackup(
+        dailyGoal: progressMap['dailyGoal'] ?? 3,
+        streak: progressMap['streak'] ?? 0,
+        notificationHour: progressMap['notifHour'] ?? 18,
+        notificationMinute: progressMap['notifMinute'] ?? 0,
+        lastPlayed: lastPlayed != null ? DateTime.parse(lastPlayed) : null,
+      );
     }
 
-    // 3. IMPORTAR ESTADÍSTICAS (Si existen)
+    // 3. IMPORTAR ESTADÍSTICAS (Si existen): reemplazan a las actuales para
+    // no duplicar días en los gráficos.
     if (statsList != null) {
-      // Limpiamos las stats actuales para no duplicar gráficos
-      await sBox.clear();
-      for (var item in statsList) {
-        final s = DailyStats(
-          date: DateTime.parse(item['date']),
-          questionsAnswered: item['answered'],
-          correctAnswers: item['correct'],
-        );
-        await sBox.add(s);
-      }
+      await progress.replaceDailyStats([
+        for (var item in statsList)
+          DailyStats(
+            date: DateTime.parse(item['date']),
+            questionsAnswered: item['answered'],
+            correctAnswers: item['correct'],
+          ),
+      ]);
     }
 
     return "Se restauraron $questionsAdded preguntas y tu historial 📈";

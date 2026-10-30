@@ -25,15 +25,19 @@ class Question extends HiveObject {
   @HiveField(6)
   String? imagePath;
 
-  // 👇 NUEVOS CAMPOS PARA FASE 2.0
+  // Los campos agregados después de la primera versión llevan defaultValue
+  // para que las preguntas guardadas antes se puedan seguir leyendo.
   @HiveField(7)
   String? explanation; // Explicación de la respuesta correcta
 
-  @HiveField(8)
-  int errorCount;      // Veces que se equivocó (para Repaso Inteligente)
+  @HiveField(8, defaultValue: 0)
+  int errorCount;      // Peso para el repaso: +1 al errar, -1 al acertar
 
-  @HiveField(9)
+  @HiveField(9, defaultValue: 0)
   int totalAttempts;   // Veces totales que la respondió (para Estadísticas)
+
+  @HiveField(10, defaultValue: 0)
+  int correctCount;    // Veces que la acertó (para la precisión por materia)
 
   Question({
     required this.id,
@@ -46,6 +50,7 @@ class Question extends HiveObject {
     this.explanation,
     this.errorCount = 0,
     this.totalAttempts = 0,
+    this.correctCount = 0,
   });
 
   // Para JSON (Exportar)
@@ -60,6 +65,7 @@ class Question extends HiveObject {
     'explanation': explanation,
     'errorCount': errorCount,
     'totalAttempts': totalAttempts,
+    'correctCount': correctCount,
   };
 
   // Para JSON (Importar)
@@ -74,5 +80,6 @@ class Question extends HiveObject {
     explanation: json['explanation'] as String?,
     errorCount: json['errorCount'] ?? 0,
     totalAttempts: json['totalAttempts'] ?? 0,
+    correctCount: json['correctCount'] ?? 0,
   );
 }
