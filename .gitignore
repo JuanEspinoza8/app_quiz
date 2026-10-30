@@ -46,3 +46,6 @@ app.*.map.json
 
 # Claves locales (usar env.example.json como plantilla)
 env.json
+
+# Archivos de respaldo de editores
+*~
