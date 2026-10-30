@@ -68,7 +68,9 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
   }
 
   void _saveGoal() {
-    final newGoal = int.tryParse(_goalController.text) ?? 3;
+    // Con una meta de 0 el quiz quedaría siempre en "Meta diaria cumplida".
+    final parsed = int.tryParse(_goalController.text.trim()) ?? 3;
+    final newGoal = parsed < 1 ? 1 : parsed;
     _progress!
       ..dailyGoal = newGoal
       ..targetCategory = _selectedCategory
