@@ -72,7 +72,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     for (var q in candidates) {
       int weight = 1 + (q.errorCount * 2);
       if (weight > 10) weight = 10;
-      for (int i = 0; i < weight; i++) weightedList.add(q);
+      weightedList.addAll(List.filled(weight, q));
     }
 
     final rand = Random();
@@ -209,7 +209,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor, // ✅ Dinámico
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
             ),
             child: Text('${p.answeredToday}/${p.dailyGoal}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6C63FF))),
           )
@@ -219,7 +219,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
         children: [
           LinearProgressIndicator(
             value: p.answeredToday / p.dailyGoal,
-            backgroundColor: Theme.of(context).dividerColor.withOpacity(0.1), // ✅ Más sutil
+            backgroundColor: Theme.of(context).dividerColor.withValues(alpha: 0.1), // ✅ Más sutil
             color: const Color(0xFF4ECDC4),
             minHeight: 6,
           ),
@@ -235,7 +235,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor, // ✅ Dinámico
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
                     ),
                     child: Column(
                       children: [
@@ -257,7 +257,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                         const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(12)), // ✅ Fondo más genérico
+                          decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)), // ✅ Fondo más genérico
                           child: Text(q.category, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
                         ),
                       ],
@@ -276,17 +276,17 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
                     if (_answered) {
                       if (isCorrect) {
-                        bgColor = const Color(0xFF4ECDC4).withOpacity(0.2);
+                        bgColor = const Color(0xFF4ECDC4).withValues(alpha: 0.2);
                         borderColor = const Color(0xFF4ECDC4);
                         textColor = const Color(0xFF1A535C);
                         if (Theme.of(context).brightness == Brightness.dark) textColor = const Color(0xFF4ECDC4); // Ajuste para dark mode
                       } else if (isSelected) {
-                        bgColor = const Color(0xFFFF6584).withOpacity(0.2);
+                        bgColor = const Color(0xFFFF6584).withValues(alpha: 0.2);
                         borderColor = const Color(0xFFFF6584);
                         textColor = const Color(0xFFA3001B);
                         if (Theme.of(context).brightness == Brightness.dark) textColor = const Color(0xFFFF6584); // Ajuste para dark mode
                       } else {
-                        bgColor = Theme.of(context).cardColor.withOpacity(0.5); // Deshabilitado visualmente
+                        bgColor = Theme.of(context).cardColor.withValues(alpha: 0.5); // Deshabilitado visualmente
                         textColor = Colors.grey;
                       }
                     }
@@ -304,7 +304,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: _answered ? borderColor : Colors.transparent, width: 2),
                             boxShadow: [
-                              if (!_answered) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                              if (!_answered) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))
                             ],
                           ),
                           child: Row(
@@ -312,7 +312,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                               Container(
                                 width: 30, height: 30,
                                 decoration: BoxDecoration(
-                                  color: _answered && isCorrect ? const Color(0xFF4ECDC4) : Colors.grey.withOpacity(0.1),
+                                  color: _answered && isCorrect ? const Color(0xFF4ECDC4) : Colors.grey.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(

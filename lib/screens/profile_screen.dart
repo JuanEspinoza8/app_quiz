@@ -55,7 +55,7 @@ class ProfileScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
               child: _buildWeeklyChart(statsBox, context),
             ),
@@ -99,7 +99,7 @@ class ProfileScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -163,12 +163,12 @@ class ProfileScreen extends StatelessWidget {
             barRods: [
               BarChartRodData(
                 toY: total == 0 ? 0.5 : total,
-                color: Colors.grey.withOpacity(0.2),
+                color: Colors.grey.withValues(alpha: 0.2),
                 width: 14,
                 borderRadius: BorderRadius.circular(4),
                 rodStackItems: [
                   BarChartRodStackItem(0, correct, const Color(0xFF6C63FF)),
-                  BarChartRodStackItem(correct, total, const Color(0xFF6C63FF).withOpacity(0.3)),
+                  BarChartRodStackItem(correct, total, const Color(0xFF6C63FF).withValues(alpha: 0.3)),
                 ],
               ),
             ],
@@ -212,7 +212,7 @@ class ProfileScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: accuracy,
-                  backgroundColor: Colors.grey.withOpacity(0.1),
+                  backgroundColor: Colors.grey.withValues(alpha: 0.1),
                   color: _getColorForAccuracy(accuracy),
                   minHeight: 8,
                 ),
@@ -258,8 +258,8 @@ class ProfileScreen extends StatelessWidget {
               color: isUnlocked ? const Color(0xFFFFBC42) : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: isUnlocked
-                  ? [BoxShadow(color: const Color(0xFFFFBC42).withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))]
-                  : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                  ? [BoxShadow(color: const Color(0xFFFFBC42).withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
+                  : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

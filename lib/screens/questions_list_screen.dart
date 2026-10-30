@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/question.dart';
 import 'add_question_screen.dart';
 
@@ -26,9 +25,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
   @override
   Widget build(BuildContext context) {
     final box = Hive.box<Question>('questionsBox');
-    final Set<String> categoriesSet = {'Todas'};
-    for (var q in box.values) categoriesSet.add(q.category);
-    final List<String> categories = categoriesSet.toList();
+    final List<String> categories = {'Todas', ...box.values.map((q) => q.category)}.toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Banco de Preguntas')),
@@ -41,13 +38,13 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor, // ✅ Dinámico
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
               ),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Buscar...',
-                  hintStyle: TextStyle(color: Colors.grey.withOpacity(0.7)),
+                  hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.7)),
                   prefixIcon: const Icon(Icons.search, color: Colors.grey),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -71,13 +68,13 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                   selected: _showOnlyHard,
                   onSelected: (val) => setState(() => _showOnlyHard = val),
                   backgroundColor: Theme.of(context).cardColor, // ✅ Dinámico
-                  selectedColor: const Color(0xFFFF6584).withOpacity(0.2),
+                  selectedColor: const Color(0xFFFF6584).withValues(alpha: 0.2),
                   labelStyle: TextStyle(
                       color: _showOnlyHard ? const Color(0xFFFF6584) : Theme.of(context).textTheme.bodyMedium?.color
                   ),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: _showOnlyHard ? const Color(0xFFFF6584) : Colors.grey.withOpacity(0.2))
+                      side: BorderSide(color: _showOnlyHard ? const Color(0xFFFF6584) : Colors.grey.withValues(alpha: 0.2))
                   ),
                   showCheckmark: false,
                 ),
@@ -95,7 +92,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                       labelStyle: TextStyle(color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.withOpacity(0.2))
+                          side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.withValues(alpha: 0.2))
                       ),
                       showCheckmark: false,
                     ),
@@ -142,7 +139,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor, // ✅ Dinámico
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(16),
@@ -160,7 +157,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.1), // ✅ Fondo neutro
+                                    color: Colors.grey.withValues(alpha: 0.1), // ✅ Fondo neutro
                                     borderRadius: BorderRadius.circular(6)
                                 ),
                                 child: Text(question.category, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
@@ -199,7 +196,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
     return Container(
       width: 50, height: 50,
       decoration: BoxDecoration(
-        color: const Color(0xFF6C63FF).withOpacity(0.1),
+        color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Icon(Icons.quiz, color: Color(0xFF6C63FF)),

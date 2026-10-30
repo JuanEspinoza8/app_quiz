@@ -48,10 +48,12 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
       setState(() {
         _attachedFileName = file.name;
         _attachedFileBytes = file.bytes ?? (file.path != null ? File(file.path!).readAsBytesSync() : null);
-        final ext = file.extension?.toLowerCase();
-        if (ext == 'pdf') _attachedMimeType = 'application/pdf';
-        else if (ext == 'png') _attachedMimeType = 'image/png';
-        else if (ext == 'jpg' || ext == 'jpeg') _attachedMimeType = 'image/jpeg';
+        _attachedMimeType = switch (file.extension?.toLowerCase()) {
+          'pdf' => 'application/pdf',
+          'png' => 'image/png',
+          'jpg' || 'jpeg' => 'image/jpeg',
+          _ => null,
+        };
       });
     }
   }
@@ -106,8 +108,10 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
 
   Future<void> _saveAll() async {
     final box = Hive.box<Question>('questionsBox');
-    for (var q in _generatedQuestions) await box.add(q);
-    if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅'))); Navigator.pop(context); }
+    await box.addAll(_generatedQuestions);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅')));
+    Navigator.pop(context);
   }
 
   @override
@@ -127,7 +131,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                     decoration: BoxDecoration(
                         color: Theme.of(context).cardColor, // ✅ Dinámico
                         borderRadius: BorderRadius.circular(24),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))]
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +150,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                               decoration: InputDecoration(
                                   hintText: 'Ej: Biología...',
                                   filled: true,
-                                  fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                                  fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                               ),
                             );
@@ -164,7 +168,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                           Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: Colors.deepPurple.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(color: Colors.deepPurple.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                             child: Row(children: [const Icon(Icons.check_circle, color: Colors.deepPurple, size: 20), const SizedBox(width: 8), Expanded(child: Text(_attachedFileName!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple), overflow: TextOverflow.ellipsis)), IconButton(onPressed: () => setState(() { _attachedFileName=null; _attachedFileBytes=null; }), icon: const Icon(Icons.close, size: 18))]),
                           ),
                         TextField(
@@ -173,7 +177,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                           decoration: InputDecoration(
                               hintText: 'Pega aquí tus apuntes...',
                               filled: true,
-                              fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                              fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                           ),
                         ),
@@ -217,7 +221,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                         color: Theme.of(context).cardColor, // ✅ Dinámico
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
-                          leading: CircleAvatar(backgroundColor: Colors.deepPurple.withOpacity(0.1), child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),
+                          leading: CircleAvatar(backgroundColor: Colors.deepPurple.withValues(alpha: 0.1), child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),
                           title: Text(q.questionText, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text("Resp: ${q.options[q.correctAnswerIndex]}", style: TextStyle(color: Colors.grey[600])),
                           trailing: const Icon(Icons.edit, size: 18, color: Colors.grey),

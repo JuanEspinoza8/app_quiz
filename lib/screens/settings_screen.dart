@@ -105,7 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return SwitchListTile(
                           title: Text(cat),
                           value: !isHidden, // Si NO está oculta, está activa
-                          activeColor: const Color(0xFF6C63FF),
+                          activeThumbColor: const Color(0xFF6C63FF),
                           onChanged: (val) {
                             setModalState(() {
                               if (val) {
@@ -158,11 +158,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text(isDark ? "Activado 🌙" : "Desactivado ☀️", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                   secondary: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: const Color(0xFF6C63FF).withOpacity(0.1), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: const Color(0xFF6C63FF).withValues(alpha: 0.1), shape: BoxShape.circle),
                     child: Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: const Color(0xFF6C63FF), size: 24),
                   ),
                   value: isDark,
-                  activeColor: const Color(0xFF6C63FF),
+                  activeThumbColor: const Color(0xFF6C63FF),
                   onChanged: (val) {
                     p.isDarkMode = val;
                     p.save();
@@ -222,7 +222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
@@ -233,7 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
         child: Icon(icon, color: color, size: 24),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),

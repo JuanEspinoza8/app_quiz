@@ -46,11 +46,8 @@ class ProgressService {
     _updateDailyStats(today, isCorrect);
   }
 
-  // 👇 Función auxiliar para guardar el historial diario
+  /// Suma la respuesta al historial del día (una entrada de DailyStats por día).
   void _updateDailyStats(DateTime date, bool isCorrect) {
-    // Normalizamos la fecha (solo año, mes, día) para usarla de ID/Key
-    final dateKey = DateTime(date.year, date.month, date.day).toString();
-
     DailyStats? todaysStats;
 
     // Buscamos si ya existe entrada para hoy

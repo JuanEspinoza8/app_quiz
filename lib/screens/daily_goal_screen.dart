@@ -106,13 +106,13 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor, // ✅ Dinámico
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
               child: Column(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: const Color(0xFFFFBC42).withOpacity(0.1), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: const Color(0xFFFFBC42).withValues(alpha: 0.1), shape: BoxShape.circle),
                     child: const Icon(Icons.emoji_events_rounded, size: 40, color: Color(0xFFFFBC42)),
                   ),
                   const SizedBox(height: 16),
@@ -127,9 +127,9 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                         width: 100,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                          color: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                         ),
                         child: TextField(
                           controller: _goalController,
@@ -160,7 +160,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                     color: (_selectedCategory != null) ? const Color(0xFF6C63FF) : Colors.transparent,
                     width: 2
                 ),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,11 +171,14 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                       labelStyle: GoogleFonts.poppins(color: Colors.grey),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                      fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
                       prefixIcon: const Icon(Icons.category_rounded, color: Color(0xFF6C63FF)),
                     ),
                     dropdownColor: Theme.of(context).cardColor, // ✅ Para que el menú no sea blanco
-                    value: categories.contains(_selectedCategory) ? _selectedCategory : null,
+                    // initialValue solo se lee al crear el campo: la key lo recrea
+                    // cuando "Desactivar Modo Examen" limpia la selección.
+                    key: ValueKey(_selectedCategory),
+                    initialValue: categories.contains(_selectedCategory) ? _selectedCategory : null,
                     items: [
                       DropdownMenuItem(value: null, child: Text("Sin filtro (Todas)", style: GoogleFonts.poppins())),
                       ...categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.poppins())))
@@ -191,7 +194,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                        color: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(

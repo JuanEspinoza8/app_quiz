@@ -33,7 +33,9 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     if (widget.editQuestion != null) {
       final q = widget.editQuestion!;
       _questionController.text = q.questionText;
-      for (int i = 0; i < 4; i++) if (i < q.options.length) _optionControllers[i].text = q.options[i];
+      for (int i = 0; i < 4 && i < q.options.length; i++) {
+        _optionControllers[i].text = q.options[i];
+      }
       _correctIndex = q.correctAnswerIndex;
       _categoryController.text = q.category;
       _explanationController.text = q.explanation ?? '';
@@ -126,9 +128,9 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                       height: 80, width: 80,
                       margin: const EdgeInsets.only(top: 24),
                       decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1), // ✅ Neutro
+                          color: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                          border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
                           image: _selectedImage != null ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover) : null
                       ),
                       child: _selectedImage == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
@@ -142,24 +144,30 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
 
             Text("Opciones (Marca la correcta)", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey[600])),
             const SizedBox(height: 10),
-            ...List.generate(4, (i) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor, // ✅ Dinámico
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _correctIndex == i ? const Color(0xFF4ECDC4) : Colors.transparent, width: 2),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]
+            RadioGroup<int>(
+              groupValue: _correctIndex,
+              onChanged: (v) => setState(() => _correctIndex = v!),
+              child: Column(
+                children: List.generate(4, (i) => Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _correctIndex == i ? const Color(0xFF4ECDC4) : Colors.transparent, width: 2),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)]
+                  ),
+                  child: RadioListTile<int>(
+                    value: i,
+                    activeColor: const Color(0xFF4ECDC4),
+                    title: TextField(
+                        controller: _optionControllers[i],
+                        decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
+                        style: const TextStyle(fontSize: 14)
+                    ),
+                  ),
+                )),
               ),
-              child: RadioListTile<int>(
-                value: i, groupValue: _correctIndex, onChanged: (v) => setState(() => _correctIndex = v!),
-                activeColor: const Color(0xFF4ECDC4),
-                title: TextField(
-                    controller: _optionControllers[i],
-                    decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
-                    style: const TextStyle(fontSize: 14)
-                ),
-              ),
-            )),
+            ),
 
             const SizedBox(height: 20),
             _buildCard([
@@ -191,7 +199,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       decoration: BoxDecoration(
           color: Theme.of(context).cardColor, // ✅ Dinámico
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 5))]
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))]
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
@@ -201,7 +209,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     return InputDecoration(
         hintText: hint,
         filled: true,
-        fillColor: Colors.grey.withOpacity(0.1), // ✅ Neutro y suave
+        fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro y suave
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.all(16)
     );
