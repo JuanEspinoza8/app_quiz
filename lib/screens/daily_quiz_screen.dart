@@ -105,6 +105,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     if (!isCorrect) {
       q.errorCount++;
     } else {
+      q.correctCount++;
       if (q.errorCount > 0) q.errorCount--;
     }
     q.save();

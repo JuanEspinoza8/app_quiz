@@ -24,6 +24,7 @@ class DataSyncService {
       "explanation": q.explanation,
       "errorCount": q.errorCount,
       "totalAttempts": q.totalAttempts,
+      "correctCount": q.correctCount,
     }).toList();
 
     // 2. Exportar Progreso Usuario

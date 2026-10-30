@@ -36,6 +36,9 @@ class Question extends HiveObject {
   @HiveField(9, defaultValue: 0)
   int totalAttempts;   // Veces totales que la respondió (para Estadísticas)
 
+  @HiveField(10, defaultValue: 0)
+  int correctCount;    // Veces que la acertó (para la precisión por materia)
+
   Question({
     required this.id,
     required this.questionText,
@@ -47,6 +50,7 @@ class Question extends HiveObject {
     this.explanation,
     this.errorCount = 0,
     this.totalAttempts = 0,
+    this.correctCount = 0,
   });
 
   // Para JSON (Exportar)
@@ -61,6 +65,7 @@ class Question extends HiveObject {
     'explanation': explanation,
     'errorCount': errorCount,
     'totalAttempts': totalAttempts,
+    'correctCount': correctCount,
   };
 
   // Para JSON (Importar)
@@ -75,5 +80,6 @@ class Question extends HiveObject {
     explanation: json['explanation'] as String?,
     errorCount: json['errorCount'] ?? 0,
     totalAttempts: json['totalAttempts'] ?? 0,
+    correctCount: json['correctCount'] ?? 0,
   );
 }

@@ -19,22 +19,19 @@ class ProfileScreen extends StatelessWidget {
     final userProgress = progressBox.getAt(0)!;
     final allQuestions = questionBox.values.toList();
 
-    int totalAnswered = 0;
-    int totalErrors = 0;
     Map<String, List<Question>> questionsByCategory = {};
-
     for (var q in allQuestions) {
-      if (q.totalAttempts > 0) {
-        totalAnswered += q.totalAttempts;
-        totalErrors += q.errorCount;
-      }
-      if (!questionsByCategory.containsKey(q.category)) {
-        questionsByCategory[q.category] = [];
-      }
-      questionsByCategory[q.category]!.add(q);
+      questionsByCategory.putIfAbsent(q.category, () => []).add(q);
     }
 
-    final totalCorrect = totalAnswered - totalErrors;
+    // Los aciertos salen del historial diario. errorCount no sirve para esto:
+    // baja con cada acierto porque es el peso del repaso inteligente.
+    int totalAnswered = 0;
+    int totalCorrect = 0;
+    for (final s in statsBox.values) {
+      totalAnswered += s.questionsAnswered;
+      totalCorrect += s.correctAnswers;
+    }
     final globalAccuracy = totalAnswered == 0 ? 0.0 : (totalCorrect / totalAnswered);
 
     return Scaffold(
@@ -189,13 +186,13 @@ class ProfileScreen extends StatelessWidget {
         final category = entry.key;
         final questions = entry.value;
         int attempts = 0;
-        int errors = 0;
+        int correct = 0;
         for (var q in questions) {
           attempts += q.totalAttempts;
-          errors += q.errorCount;
+          correct += q.correctCount;
         }
         if (attempts == 0) return const SizedBox.shrink();
-        final accuracy = (attempts - errors) / attempts;
+        final accuracy = correct / attempts;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),

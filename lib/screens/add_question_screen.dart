@@ -54,6 +54,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       explanation: _explanationController.text.trim().isEmpty ? null : _explanationController.text.trim(),
       errorCount: widget.editQuestion?.errorCount ?? 0,
       totalAttempts: widget.editQuestion?.totalAttempts ?? 0,
+      correctCount: widget.editQuestion?.correctCount ?? 0,
     );
     if (widget.editQuestion != null) {
       final idx = box.values.toList().indexOf(widget.editQuestion!);

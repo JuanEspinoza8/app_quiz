@@ -27,13 +27,14 @@ class QuestionAdapter extends TypeAdapter<Question> {
       explanation: fields[7] as String?,
       errorCount: fields[8] == null ? 0 : fields[8] as int,
       totalAttempts: fields[9] == null ? 0 : fields[9] as int,
+      correctCount: fields[10] == null ? 0 : fields[10] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, Question obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class QuestionAdapter extends TypeAdapter<Question> {
       ..writeByte(8)
       ..write(obj.errorCount)
       ..writeByte(9)
-      ..write(obj.totalAttempts);
+      ..write(obj.totalAttempts)
+      ..writeByte(10)
+      ..write(obj.correctCount);
   }
 
   @override

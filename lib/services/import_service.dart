@@ -47,6 +47,7 @@ class ImportService {
         explanation: item['explanation'],
         errorCount: item['errorCount'] ?? 0,
         totalAttempts: item['totalAttempts'] ?? 0,
+        correctCount: item['correctCount'] ?? 0,
       );
       await qBox.add(q);
       questionsAdded++;
