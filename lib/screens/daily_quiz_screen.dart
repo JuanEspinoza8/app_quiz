@@ -86,7 +86,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     });
   }
 
-  void _checkAnswer(int index) async {
+  Future<void> _checkAnswer(int index) async {
     setState(() {
       _answered = true;
       _selectedIndex = index;
@@ -148,6 +148,8 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       await Future.delayed(const Duration(seconds: 1));
     }
 
+    // Si el usuario volvió atrás durante la espera, no hay estado que actualizar.
+    if (!mounted) return;
     _loadSmartQuestion();
   }
 

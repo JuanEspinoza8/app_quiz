@@ -39,6 +39,12 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
     _selectedDate = _progress?.targetDate;
   }
 
+  @override
+  void dispose() {
+    _goalController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(

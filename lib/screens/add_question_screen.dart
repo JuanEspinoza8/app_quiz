@@ -19,6 +19,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   final _optionControllers = List.generate(4, (_) => TextEditingController());
   final _explanationController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _categoryFocusNode = FocusNode();
   int _correctIndex = 0;
   File? _selectedImage;
   List<String> _existingCategories = [];
@@ -38,6 +39,18 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       _explanationController.text = q.explanation ?? '';
       if (q.imagePath != null) _selectedImage = File(q.imagePath!);
     }
+  }
+
+  @override
+  void dispose() {
+    _questionController.dispose();
+    for (final c in _optionControllers) {
+      c.dispose();
+    }
+    _explanationController.dispose();
+    _categoryController.dispose();
+    _categoryFocusNode.dispose();
+    super.dispose();
   }
 
   void _save() {
@@ -90,12 +103,13 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                       children: [
                         Text("Categoría", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
+                        // Autocomplete usa directamente nuestro controller: no hace
+                        // falta copiar el texto con un listener en cada build.
                         Autocomplete<String>(
+                          textEditingController: _categoryController,
+                          focusNode: _categoryFocusNode,
                           optionsBuilder: (v) => _existingCategories.where((c) => c.toLowerCase().contains(v.text.toLowerCase())),
-                          onSelected: (val) => _categoryController.text = val,
                           fieldViewBuilder: (c, ctrl, n, _) {
-                            if (_categoryController.text.isNotEmpty && ctrl.text.isEmpty) ctrl.text = _categoryController.text;
-                            ctrl.addListener(() => _categoryController.text = ctrl.text);
                             return TextField(controller: ctrl, focusNode: n, decoration: _inputDeco('Historia...'));
                           },
                         ),
@@ -106,7 +120,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                   GestureDetector(
                     onTap: () async {
                       final p = await ImagePicker().pickImage(source: ImageSource.gallery);
-                      if(p!=null) setState(() => _selectedImage = File(p.path));
+                      if (p != null && mounted) setState(() => _selectedImage = File(p.path));
                     },
                     child: Container(
                       height: 80, width: 80,

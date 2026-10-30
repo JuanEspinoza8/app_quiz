@@ -18,6 +18,12 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
   bool _showOnlyHard = false;
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final box = Hive.box<Question>('questionsBox');
     final Set<String> categoriesSet = {'Todas'};

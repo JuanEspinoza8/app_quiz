@@ -14,6 +14,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _nameController = TextEditingController();
   int _dailyGoal = 5;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
   void _finish() {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Por favor dinos tu nombre! 🙏")));

@@ -17,6 +17,7 @@ class AiGeneratorScreen extends StatefulWidget {
 class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
   final _textController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _categoryFocusNode = FocusNode();
 
   bool _isLoading = false;
   List<Question> _generatedQuestions = [];
@@ -30,6 +31,14 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
     super.initState();
     final box = Hive.box<Question>('questionsBox');
     _existingCategories = box.values.map((q) => q.category).toSet().toList();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _categoryController.dispose();
+    _categoryFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _pickFile() async {
@@ -85,38 +94,14 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
     }
   }
 
-  void _editQuestionLocal(int index) {
-    final q = _generatedQuestions[index];
-    final questionCtrl = TextEditingController(text: q.questionText);
-    final explanationCtrl = TextEditingController(text: q.explanation);
-    final optionCtrls = List.generate(4, (i) => TextEditingController(text: q.options[i]));
-    int tempCorrectIndex = q.correctAnswerIndex;
-
-    showDialog(
+  Future<void> _editQuestionLocal(int index) async {
+    final edited = await showDialog<Question>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text("Editar"),
-            content: SingleChildScrollView(
-              child: Column(children: [
-                TextField(controller: questionCtrl, decoration: const InputDecoration(labelText: "Pregunta")),
-                const SizedBox(height: 10),
-                ...List.generate(4, (i) => Row(children: [Radio<int>(value: i, groupValue: tempCorrectIndex, onChanged: (v)=>setDialogState(()=>tempCorrectIndex=v!)), Expanded(child: TextField(controller: optionCtrls[i]))])),
-                TextField(controller: explanationCtrl, decoration: const InputDecoration(labelText: "Explicación")),
-              ]),
-            ),
-            actions: [
-              TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancelar")),
-              ElevatedButton(onPressed: () {
-                setState(() => _generatedQuestions[index] = Question(id: q.id, questionText: questionCtrl.text, options: optionCtrls.map((c)=>c.text).toList(), correctAnswerIndex: tempCorrectIndex, category: _categoryController.text, createdAt: q.createdAt, explanation: explanationCtrl.text, errorCount: 0, totalAttempts: 0));
-                Navigator.pop(context);
-              }, child: const Text("Guardar"))
-            ],
-          );
-        },
-      ),
+      builder: (_) => _EditGeneratedQuestionDialog(question: _generatedQuestions[index]),
     );
+    if (edited != null && mounted) {
+      setState(() => _generatedQuestions[index] = edited);
+    }
   }
 
   Future<void> _saveAll() async {
@@ -149,12 +134,13 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                       children: [
                         Text("1. Categoría", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(height: 8),
+                        // Autocomplete usa directamente nuestro controller: no hace
+                        // falta copiar el texto con un listener en cada build.
                         Autocomplete<String>(
+                          textEditingController: _categoryController,
+                          focusNode: _categoryFocusNode,
                           optionsBuilder: (v) => _existingCategories.where((c) => c.toLowerCase().contains(v.text.toLowerCase())),
-                          onSelected: (val) => _categoryController.text = val,
                           fieldViewBuilder: (context, controller, node, _) {
-                            if (_categoryController.text.isNotEmpty && controller.text.isEmpty) controller.text = _categoryController.text;
-                            controller.addListener(() => _categoryController.text = controller.text);
                             return TextField(
                               controller: controller, focusNode: node,
                               decoration: InputDecoration(
@@ -252,6 +238,84 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Diálogo para corregir una pregunta generada antes de guardarla. Es un
+/// widget propio para poder liberar sus controllers en dispose().
+class _EditGeneratedQuestionDialog extends StatefulWidget {
+  final Question question;
+  const _EditGeneratedQuestionDialog({required this.question});
+
+  @override
+  State<_EditGeneratedQuestionDialog> createState() => _EditGeneratedQuestionDialogState();
+}
+
+class _EditGeneratedQuestionDialogState extends State<_EditGeneratedQuestionDialog> {
+  late final TextEditingController _questionCtrl;
+  late final TextEditingController _explanationCtrl;
+  late final List<TextEditingController> _optionCtrls;
+  late int _correctIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.question;
+    _questionCtrl = TextEditingController(text: q.questionText);
+    _explanationCtrl = TextEditingController(text: q.explanation);
+    _optionCtrls = [for (final option in q.options) TextEditingController(text: option)];
+    _correctIndex = q.correctAnswerIndex;
+  }
+
+  @override
+  void dispose() {
+    _questionCtrl.dispose();
+    _explanationCtrl.dispose();
+    for (final c in _optionCtrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _save() {
+    final q = widget.question;
+    final explanation = _explanationCtrl.text.trim();
+    Navigator.pop(
+      context,
+      Question(
+        id: q.id,
+        questionText: _questionCtrl.text.trim(),
+        options: _optionCtrls.map((c) => c.text.trim()).toList(),
+        correctAnswerIndex: _correctIndex,
+        category: q.category,
+        createdAt: q.createdAt,
+        explanation: explanation.isEmpty ? null : explanation,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Editar"),
+      content: SingleChildScrollView(
+        child: RadioGroup<int>(
+          groupValue: _correctIndex,
+          onChanged: (v) => setState(() => _correctIndex = v!),
+          child: Column(children: [
+            TextField(controller: _questionCtrl, decoration: const InputDecoration(labelText: "Pregunta")),
+            const SizedBox(height: 10),
+            for (int i = 0; i < _optionCtrls.length; i++)
+              Row(children: [Radio<int>(value: i), Expanded(child: TextField(controller: _optionCtrls[i]))]),
+            TextField(controller: _explanationCtrl, decoration: const InputDecoration(labelText: "Explicación")),
+          ]),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+        ElevatedButton(onPressed: _save, child: const Text("Guardar")),
+      ],
     );
   }
 }

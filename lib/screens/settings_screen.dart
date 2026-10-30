@@ -51,7 +51,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       p.notificationMinute = picked.minute;
       await p.save();
       await NotificationService.scheduleDaily(picked.hour, picked.minute);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notificación ajustada a las ${picked.format(context)} 📅')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notificación ajustada a las ${picked.format(context)} 📅')));
       setState(() {});
     }
   }
@@ -65,8 +66,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
     if (result == null) return;
     final file = File(result.files.single.path!);
-    final msg = await ImportService.importBackup(file);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    String msg;
+    try {
+      msg = await ImportService.importBackup(file);
+    } catch (e) {
+      msg = 'No se pudo leer el respaldo: $e';
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     setState(() {});
   }
 
