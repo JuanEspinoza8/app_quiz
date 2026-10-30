@@ -4,8 +4,19 @@ import '../models/daily_stats.dart';
 import 'storage_service.dart';
 
 class ProgressService {
-  final Box<UserProgress> _progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
-  final Box<DailyStats> _statsBox = Hive.box<DailyStats>(HiveBoxes.stats);
+  final Box<UserProgress> _progressBox;
+  final Box<DailyStats> _statsBox;
+  final DateTime Function() _now;
+
+  /// Por defecto usa las cajas abiertas en main y el reloj del sistema; los
+  /// parámetros permiten fijar la fecha en los tests.
+  ProgressService({
+    Box<UserProgress>? progressBox,
+    Box<DailyStats>? statsBox,
+    DateTime Function()? now,
+  })  : _progressBox = progressBox ?? Hive.box<UserProgress>(HiveBoxes.progress),
+        _statsBox = statsBox ?? Hive.box<DailyStats>(HiveBoxes.stats),
+        _now = now ?? DateTime.now;
 
   UserProgress get progress => _progressBox.getAt(0)!;
 
@@ -13,7 +24,7 @@ class ProgressService {
   /// contador diario. Se llama al iniciar la app, al abrir el quiz y antes de
   /// sumar una respuesta. Devuelve true si hubo cambio de día.
   bool rolloverIfNewDay() {
-    final today = DateTime.now();
+    final today = _now();
     final p = progress;
     if (_isSameDay(today, p.lastPlayedDate)) return false;
 
@@ -32,7 +43,7 @@ class ProgressService {
 
   /// Llamar cada vez que el usuario responde una pregunta
   void incrementProgress(bool isCorrect) {
-    final today = DateTime.now();
+    final today = _now();
     rolloverIfNewDay();
     final p = progress;
 
