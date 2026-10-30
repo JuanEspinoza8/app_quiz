@@ -1,11 +1,57 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 import '../models/question.dart';
 import 'package:uuid/uuid.dart';
 
+/// Error con un mensaje listo para mostrar al usuario.
+class GeminiException implements Exception {
+  final String message;
+  const GeminiException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+/// Agrega los headers que Google Cloud usa para validar una API key
+/// restringida a una app Android. El SDK de Dart no los manda por su cuenta.
+class _AndroidAppHeadersClient extends http.BaseClient {
+  final String packageName;
+  final String certSha1;
+  final http.Client _inner = http.Client();
+
+  _AndroidAppHeadersClient(this.packageName, this.certSha1);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers['X-Android-Package'] = packageName;
+    request.headers['X-Android-Cert'] = certSha1;
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
 class GeminiService {
-  static const String _apiKey = 'AIzaSyD738tJhB3ZiyAmCLQ38QGnSE2I9ycveNY';
+  /// Se inyecta al compilar: `flutter run --dart-define-from-file=env.json`.
+  static const String _apiKey = String.fromEnvironment('GEMINI_API_KEY');
+
+  /// Opcionales: solo hacen falta si la clave está restringida a la app Android.
+  static const String _androidPackage =
+      String.fromEnvironment('ANDROID_PACKAGE', defaultValue: 'com.example.quiz_daily');
+  static const String _androidCertSha1 = String.fromEnvironment('ANDROID_CERT_SHA1');
+
+  static bool get isConfigured => _apiKey.isNotEmpty;
+
+  static http.Client? _buildHttpClient() {
+    if (_androidCertSha1.isEmpty || !Platform.isAndroid) return null;
+    // Google espera la huella en hexadecimal, sin los ':'.
+    final cert = _androidCertSha1.replaceAll(':', '').toUpperCase();
+    return _AndroidAppHeadersClient(_androidPackage, cert);
+  }
 
   static Future<List<Question>> generateQuestions(
       String promptText, {
@@ -15,13 +61,17 @@ class GeminiService {
         String? mimeType,
       }) async {
 
-    if (_apiKey.startsWith('TU_API') || _apiKey.isEmpty) {
-      throw Exception('⚠️ Error: Falta la API Key en gemini_service.dart');
+    if (!isConfigured) {
+      throw const GeminiException(
+        'Falta GEMINI_API_KEY. Ejecutá la app con '
+        '--dart-define-from-file=env.json (ver README).',
+      );
     }
 
     final model = GenerativeModel(
       model: 'gemini-2.5-flash',
       apiKey: _apiKey,
+      httpClient: _buildHttpClient(),
     );
 
     // Construimos la lista de "evitar"

@@ -55,15 +55,30 @@ cd app_quiz
 flutter pub get
 ```
 
-Configurar API Key de Gemini:
+### API key de Gemini
 
-Asegúrate de configurar de forma segura tu API Key de Gemini en tu proyecto (usando variables de entorno o `.env` si usas `flutter_dotenv`) para habilitar la generación automática de preguntas con IA.
-
-Para correr la app en tu emulador o dispositivo físico:
+La generación con IA usa una API key de [Google AI Studio](https://aistudio.google.com/apikey). La clave no está en el código: se pasa al compilar con `--dart-define`.
 
 ```bash
-flutter run
+cp env.example.json env.json   # env.json está en .gitignore
+# editar env.json y completar GEMINI_API_KEY
+flutter run --dart-define-from-file=env.json
 ```
+
+Sin la clave, la app funciona igual, pero el generador con IA muestra un error que avisa que falta configurarla.
+
+> **Importante:** en una app cliente, cualquier valor que viaja en el APK (incluido un `--dart-define`) se puede extraer descompilándolo. `--dart-define` sirve para no subir la clave al repo, no para ocultarla. Por eso conviene restringirla en Google Cloud Console → *Credenciales*:
+>
+> - **Restricción de API:** solo *Generative Language API*. Funciona sin cambios en la app.
+> - **Restricción de aplicación Android** (nombre de paquete + huella SHA-1 del certificado de firma). Google valida esta restricción con los headers `X-Android-Package` y `X-Android-Cert`, que el SDK de Dart no envía solo. La app los agrega si se define `ANDROID_CERT_SHA1` en `env.json` (y `ANDROID_PACKAGE` si cambia el `applicationId`):
+>
+>   ```json
+>   { "GEMINI_API_KEY": "...", "ANDROID_CERT_SHA1": "AA:BB:CC:..." }
+>   ```
+>
+>   La huella sale de `cd android && ./gradlew signingReport`. Sin estos valores, una clave restringida a Android responde 403.
+>
+> Ninguna de las dos impide que alguien con el APK reutilice la clave: la protección real es un backend propio (o Firebase App Check) entre la app y Gemini.
 
 ---
 
