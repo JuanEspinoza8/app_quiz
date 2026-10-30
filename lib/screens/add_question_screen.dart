@@ -156,13 +156,18 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                       border: Border.all(color: _correctIndex == i ? AppColors.teal : Colors.transparent, width: 2),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)]
                   ),
-                  child: RadioListTile<int>(
-                    value: i,
-                    activeColor: AppColors.teal,
-                    title: TextField(
-                        controller: _optionControllers[i],
-                        decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
-                        style: const TextStyle(fontSize: 14)
+                  // Material transparente para que el efecto de toque se vea
+                  // por encima del fondo del Container.
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: RadioListTile<int>(
+                      value: i,
+                      activeColor: AppColors.teal,
+                      title: TextField(
+                          controller: _optionControllers[i],
+                          decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
+                          style: const TextStyle(fontSize: 14)
+                      ),
                     ),
                   ),
                 )),

@@ -199,7 +199,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      // Material transparente para que los ListTile muestren el efecto de
+      // toque por encima del fondo del Container.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      ),
     );
   }
 
