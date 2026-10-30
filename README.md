@@ -9,12 +9,13 @@
 
 Proyecto personal. No está publicado en ninguna tienda.
 
-<p>
-  <img src="docs/screenshots/inicio.jpeg" width="200" alt="Pantalla de inicio con el progreso del día y la racha" />
-  <img src="docs/screenshots/inicio-oscuro.jpeg" width="200" alt="Pantalla de inicio en modo oscuro" />
-  <img src="docs/screenshots/nueva-pregunta.jpeg" width="200" alt="Formulario para crear una pregunta" />
-  <img src="docs/screenshots/configuracion.jpeg" width="200" alt="Configuración: materias, modo oscuro, recordatorio y respaldo" />
-</p>
+| Inicio | Quiz diario | Generador con IA |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/inicio.jpeg" width="220" alt="Inicio con el progreso del día (7 de 10) y una racha de 6 días" /> | <img src="docs/screenshots/quiz.jpeg" width="220" alt="Pregunta del quiz diario con cuatro opciones" /> | <img src="docs/screenshots/generador-ia.jpeg" width="220" alt="Generador con IA con la categoría y el texto de los apuntes" /> |
+| **Banco de preguntas** (modo oscuro) | **Progreso** (modo oscuro) | **Configuración** (modo oscuro) |
+| <img src="docs/screenshots/banco-oscuro.jpeg" width="220" alt="Banco de preguntas con búsqueda, filtros por materia y botón para borrar" /> | <img src="docs/screenshots/progreso-oscuro.jpeg" width="220" alt="Estadísticas: racha, total, precisión, gráfico semanal y precisión por materia" /> | <img src="docs/screenshots/configuracion-oscuro.jpeg" width="220" alt="Configuración con modo oscuro, recordatorio diario y respaldo" /> |
+
+<sub>Capturas de un emulador Android con datos de ejemplo.</sub>
 
 ---
 
