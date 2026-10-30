@@ -17,6 +17,7 @@ import 'package:quiz_daily/screens/ai_generator_screen.dart';
 import 'package:quiz_daily/screens/settings_screen.dart';
 import 'package:quiz_daily/screens/onboarding_screen.dart';
 import 'package:quiz_daily/services/notification_service.dart';
+import 'package:quiz_daily/services/progress_service.dart';
 
 void main() async {
   // Aseguramos que el motor gráfico esté listo antes de cualquier lógica
@@ -75,6 +76,9 @@ void main() async {
         hiddenCategories: [],
       ));
     }
+
+    // Reinicia el progreso diario y la racha si cambió el día desde la última vez.
+    ProgressService().rolloverIfNewDay();
 
     // Inicializamos notificaciones
     await NotificationService.init();

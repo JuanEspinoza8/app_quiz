@@ -27,6 +27,9 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     super.initState();
     _box = Hive.box<Question>('questionsBox');
     _progressService = ProgressService();
+    // Si la app quedó abierta de un día para otro, reinicia el contador antes
+    // de decidir si la meta ya está cumplida.
+    _progressService.rolloverIfNewDay();
     _loadSmartQuestion();
   }
 

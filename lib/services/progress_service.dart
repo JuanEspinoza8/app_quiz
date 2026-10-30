@@ -8,41 +8,34 @@ class ProgressService {
 
   UserProgress get progress => _progressBox.getAt(0)!;
 
-  /// Llamar cada vez que el usuario responde una pregunta
-  void incrementProgress(bool isCorrect) { // 👈 Ahora recibimos si acertó o no
+  /// Si cambió el día desde la última vez, actualiza la racha y reinicia el
+  /// contador diario. Se llama al iniciar la app, al abrir el quiz y antes de
+  /// sumar una respuesta. Devuelve true si hubo cambio de día.
+  bool rolloverIfNewDay() {
     final today = DateTime.now();
     final p = progress;
+    if (_isSameDay(today, p.lastPlayedDate)) return false;
 
-    // --- 1. LÓGICA DE RACHA Y PROGRESO GENERAL ---
-
-    // Si es la primera vez histórica
-    if (p.lastPlayedDate.year < 2020) {
-      p.lastPlayedDate = today;
-      p.streak = 1;
-      p.answeredToday = 1;
-      p.save();
-      _updateDailyStats(today, isCorrect); // Guardar en historial
-      return;
+    // La racha sigue solo si el último día jugado fue ayer y se cumplió la meta.
+    if (_isYesterday(p.lastPlayedDate, today) && p.answeredToday >= p.dailyGoal) {
+      p.streak += 1;
+    } else {
+      p.streak = 0;
     }
 
-    // Si es un nuevo día
-    if (!_isSameDay(today, p.lastPlayedDate)) {
-      final wasConsecutive = _isYesterday(p.lastPlayedDate, today);
+    p.answeredToday = 0;
+    p.lastPlayedDate = today;
+    p.save();
+    return true;
+  }
 
-      // Si jugó ayer y cumplió meta, suma racha. Si no, a cero.
-      if (wasConsecutive && p.answeredToday >= p.dailyGoal) {
-        p.streak += 1;
-      } else {
-        // Opcional: Podrías ser buena onda y no resetear si solo faltó un día,
-        // pero la lógica estricta es resetear.
-        p.streak = 0;
-      }
+  /// Llamar cada vez que el usuario responde una pregunta
+  void incrementProgress(bool isCorrect) {
+    final today = DateTime.now();
+    rolloverIfNewDay();
+    final p = progress;
 
-      p.answeredToday = 0;
-      p.lastPlayedDate = today;
-    }
-
-    // Recuperar racha si estaba en 0 y empieza hoy
+    // Primera respuesta del día con la racha cortada: empieza una nueva.
     if (p.streak == 0 && p.answeredToday == 0) {
       p.streak = 1;
     }
@@ -50,7 +43,6 @@ class ProgressService {
     p.answeredToday += 1;
     p.save();
 
-    // --- 2. ACTUALIZAR HISTORIAL DE ESTADÍSTICAS ---
     _updateDailyStats(today, isCorrect);
   }
 
@@ -91,8 +83,11 @@ class ProgressService {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  // Compara días de calendario en UTC para que un cambio de horario de verano
+  // no convierta "ayer" en una diferencia de 23 horas.
   bool _isYesterday(DateTime last, DateTime now) {
-    final diff = now.difference(DateTime(last.year, last.month, last.day)).inDays;
-    return diff == 1;
+    final lastDay = DateTime.utc(last.year, last.month, last.day);
+    final today = DateTime.utc(now.year, now.month, now.day);
+    return today.difference(lastDay).inDays == 1;
   }
 }
