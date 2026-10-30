@@ -25,14 +25,15 @@ class Question extends HiveObject {
   @HiveField(6)
   String? imagePath;
 
-  // 👇 NUEVOS CAMPOS PARA FASE 2.0
+  // Los campos agregados después de la primera versión llevan defaultValue
+  // para que las preguntas guardadas antes se puedan seguir leyendo.
   @HiveField(7)
   String? explanation; // Explicación de la respuesta correcta
 
-  @HiveField(8)
-  int errorCount;      // Veces que se equivocó (para Repaso Inteligente)
+  @HiveField(8, defaultValue: 0)
+  int errorCount;      // Peso para el repaso: +1 al errar, -1 al acertar
 
-  @HiveField(9)
+  @HiveField(9, defaultValue: 0)
   int totalAttempts;   // Veces totales que la respondió (para Estadísticas)
 
   Question({

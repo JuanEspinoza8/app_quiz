@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'dart:io';
 
-// Imports de tus modelos y pantallas
 import 'package:quiz_daily/models/question.dart';
 import 'package:quiz_daily/models/user_progress.dart';
 import 'package:quiz_daily/models/daily_stats.dart';
@@ -16,85 +14,67 @@ import 'package:quiz_daily/screens/profile_screen.dart';
 import 'package:quiz_daily/screens/ai_generator_screen.dart';
 import 'package:quiz_daily/screens/settings_screen.dart';
 import 'package:quiz_daily/screens/onboarding_screen.dart';
+import 'package:quiz_daily/screens/storage_error_screen.dart';
 import 'package:quiz_daily/services/notification_service.dart';
 import 'package:quiz_daily/services/progress_service.dart';
+import 'package:quiz_daily/services/storage_service.dart';
 
-void main() async {
+Future<void> main() async {
   // Aseguramos que el motor gráfico esté listo antes de cualquier lógica
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {
-    // Inicializamos formato de fechas para gráficos en español
-    await initializeDateFormatting('es', null);
+  // Inicializamos formato de fechas para gráficos en español
+  await initializeDateFormatting('es', null);
 
-    // Inicializamos Hive
-    await Hive.initFlutter();
+  await Hive.initFlutter();
+  Hive.registerAdapter(QuestionAdapter());
+  Hive.registerAdapter(UserProgressAdapter());
+  Hive.registerAdapter(DailyStatsAdapter());
 
-    // Registramos adaptadores (Tipos de datos custom)
-    Hive.registerAdapter(QuestionAdapter());
-    Hive.registerAdapter(UserProgressAdapter());
-    Hive.registerAdapter(DailyStatsAdapter());
+  await _start();
+}
 
-    // 👇 BLOQUE DE SEGURIDAD ANTI-PANTALLA NEGRA
-    // Intentamos abrir las cajas. Si falla por un bloqueo (.lock), capturamos el error.
-    try {
-      await Hive.openBox<Question>('questionsBox');
-      await Hive.openBox<UserProgress>('progressBox');
-      await Hive.openBox<DailyStats>('statsBox');
-    } catch (e) {
-      print("⚠️ Error crítico abriendo Hive (posible lock corrupto): $e");
-
-      // Si falla, intentamos borrar los archivos de la caja corrupta de la memoria y reabrir.
-      // Esto elimina los archivos .lock que causan que la app se cuelgue.
-      try {
-        await Hive.deleteBoxFromDisk('questionsBox'); // Solo si es necesario borrar datos corruptos
-        await Hive.deleteBoxFromDisk('progressBox');
-        await Hive.deleteBoxFromDisk('statsBox');
-      } catch (e2) {
-        print("Error intentando borrar cajas corruptas: $e2");
-      }
-
-      // Reintentamos abrir las cajas limpias
-      await Hive.openBox<Question>('questionsBox');
-      await Hive.openBox<UserProgress>('progressBox');
-      await Hive.openBox<DailyStats>('statsBox');
-    }
-
-    final progressBox = Hive.box<UserProgress>('progressBox');
-
-    // Inicialización de primera vez (Si la caja está vacía o se reseteó)
-    if (progressBox.isEmpty) {
-      progressBox.add(UserProgress(
-        dailyGoal: 5,
-        answeredToday: 0,
-        streak: 0,
-        lastPlayedDate: DateTime(2000, 1, 1),
-        notificationHour: 18,
-        notificationMinute: 0,
-        isDarkMode: false,
-        userName: '',
-        hiddenCategories: [],
-      ));
-    }
-
-    // Reinicia el progreso diario y la racha si cambió el día desde la última vez.
-    ProgressService().rolloverIfNewDay();
-
-    // Inicializamos notificaciones
-    await NotificationService.init();
-
-    // Reprogramamos la notificación al iniciar para "revivirla" si el sistema la mató
-    // Esto es CLAVE en Samsung/Xiaomi para que vuelvan a sonar
-    final userPrefs = progressBox.getAt(0)!;
-    await NotificationService.scheduleDaily(userPrefs.notificationHour, userPrefs.notificationMinute);
-
-  } catch (e, stack) {
-    // Si ocurre un error catastrófico que no pudimos manejar, lo imprimimos.
-    // En una app real, aquí podrías mandar el error a Crashlytics.
-    print("Error fatal en main: $e \n $stack");
+/// Abre los datos y arranca la app. Si Hive no puede abrir alguna caja, se
+/// muestra una pantalla de error en lugar de borrar los datos.
+Future<void> _start() async {
+  final failures = await StorageService.openBoxes();
+  if (failures.isNotEmpty) {
+    runApp(StorageErrorApp(failures: failures, onRetry: _start));
+    return;
   }
 
-  // 👇 runApp SIEMPRE debe ejecutarse al final, pase lo que pase con la BD.
+  final progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
+
+  // Inicialización de primera vez
+  if (progressBox.isEmpty) {
+    await progressBox.add(UserProgress(
+      dailyGoal: 5,
+      answeredToday: 0,
+      streak: 0,
+      lastPlayedDate: DateTime(2000, 1, 1),
+      notificationHour: 18,
+      notificationMinute: 0,
+      isDarkMode: false,
+      userName: '',
+      hiddenCategories: [],
+    ));
+  }
+
+  // Reinicia el progreso diario y la racha si cambió el día desde la última vez.
+  ProgressService().rolloverIfNewDay();
+
+  try {
+    await NotificationService.init();
+
+    // Reprogramamos el recordatorio al iniciar por si el sistema lo canceló
+    // (pasa en algunas capas de Android con ahorro de batería agresivo).
+    final userPrefs = progressBox.getAt(0)!;
+    await NotificationService.scheduleDaily(userPrefs.notificationHour, userPrefs.notificationMinute);
+  } catch (e, stack) {
+    // Un problema con las notificaciones no tiene que impedir usar la app.
+    debugPrint('No se pudieron configurar las notificaciones: $e\n$stack');
+  }
+
   runApp(const QuizDailyApp());
 }
 
@@ -103,34 +83,9 @@ class QuizDailyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Verificamos si Hive se cargó correctamente. Si no, mostramos pantalla de carga.
-    // Esto evita la pantalla ROJA de error de Flutter.
-    if (!Hive.isBoxOpen('progressBox')) {
-      return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text("Recuperando datos...", style: GoogleFonts.poppins()),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     return ValueListenableBuilder(
-      valueListenable: Hive.box<UserProgress>('progressBox').listenable(),
+      valueListenable: Hive.box<UserProgress>(HiveBoxes.progress).listenable(),
       builder: (context, Box<UserProgress> box, _) {
-        // Protección extra por si la caja está vacía tras un error crítico
-        if (box.isEmpty) {
-          box.add(UserProgress(dailyGoal: 5, answeredToday: 0, streak: 0, lastPlayedDate: DateTime(2000), userName: ''));
-        }
-
         final p = box.getAt(0);
         final isDark = p?.isDarkMode ?? false;
         final bool showOnboarding = (p?.userName == null || p!.userName.isEmpty);

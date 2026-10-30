@@ -25,8 +25,8 @@ class QuestionAdapter extends TypeAdapter<Question> {
       createdAt: fields[5] as DateTime,
       imagePath: fields[6] as String?,
       explanation: fields[7] as String?,
-      errorCount: fields[8] as int,
-      totalAttempts: fields[9] as int,
+      errorCount: fields[8] == null ? 0 : fields[8] as int,
+      totalAttempts: fields[9] == null ? 0 : fields[9] as int,
     );
   }
 
