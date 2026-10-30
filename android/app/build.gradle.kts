@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.quiz_daily"
+    namespace = "io.github.juanespinoza8.quizdaily"
     compileSdk = 36 // flutter_local_notifications pide al menos 34
     ndkVersion = flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.quiz_daily"
+        applicationId = "io.github.juanespinoza8.quizdaily"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
