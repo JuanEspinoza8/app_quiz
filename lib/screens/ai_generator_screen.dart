@@ -129,7 +129,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor, // ✅ Dinámico
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))]
                     ),
@@ -150,7 +150,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                               decoration: InputDecoration(
                                   hintText: 'Ej: Biología...',
                                   filled: true,
-                                  fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
+                                  fillColor: Colors.grey.withValues(alpha: 0.1),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                               ),
                             );
@@ -177,7 +177,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                           decoration: InputDecoration(
                               hintText: 'Pega aquí tus apuntes...',
                               filled: true,
-                              fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
+                              fillColor: Colors.grey.withValues(alpha: 0.1),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
                           ),
                         ),
@@ -218,7 +218,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
-                        color: Theme.of(context).cardColor, // ✅ Dinámico
+                        color: Theme.of(context).cardColor,
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
                           leading: CircleAvatar(backgroundColor: Colors.deepPurple.withValues(alpha: 0.1), child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),

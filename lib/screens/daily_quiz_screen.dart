@@ -37,11 +37,10 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     if (_box.isEmpty) return;
 
     final progress = _progressService.progress;
-    // 👇 1. Obtenemos todas las preguntas
     List<Question> candidates = _box.values.toList();
     String? currentModeMsg;
 
-    // 👇 2. FILTRO NUEVO: Quitamos las categorías desactivadas
+    // Quitamos las categorías desactivadas en Configuración
     if (progress.hiddenCategories.isNotEmpty) {
       candidates = candidates.where((q) => !progress.hiddenCategories.contains(q.category)).toList();
     }
@@ -207,7 +206,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor, // ✅ Dinámico
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
             ),
@@ -219,7 +218,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
         children: [
           LinearProgressIndicator(
             value: p.answeredToday / p.dailyGoal,
-            backgroundColor: Theme.of(context).dividerColor.withValues(alpha: 0.1), // ✅ Más sutil
+            backgroundColor: Theme.of(context).dividerColor.withValues(alpha: 0.1),
             color: const Color(0xFF4ECDC4),
             minHeight: 6,
           ),
@@ -233,7 +232,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor, // ✅ Dinámico
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
                     ),
@@ -251,13 +250,12 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            // ✅ Quitamos color fijo
                           ),
                         ),
                         const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)), // ✅ Fondo más genérico
+                          decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                           child: Text(q.category, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
                         ),
                       ],
@@ -270,7 +268,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     final isCorrect = i == q.correctAnswerIndex;
                     final isSelected = i == _selectedIndex;
 
-                    Color bgColor = Theme.of(context).cardColor; // ✅ Base dinámica
+                    Color bgColor = Theme.of(context).cardColor;
                     Color borderColor = Colors.transparent;
                     Color? textColor; // Dejar null para que use el tema por defecto
 

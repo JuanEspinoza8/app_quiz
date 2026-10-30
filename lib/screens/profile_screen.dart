@@ -50,7 +50,7 @@ class ProfileScreen extends StatelessWidget {
             Text("Tu semana", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Container(
-              height: 250, // 👈 AUMENTAMOS UN POCO LA ALTURA TOTAL
+              height: 250,
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
@@ -142,7 +142,7 @@ class ProfileScreen extends StatelessWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40, // 👈 ESTO ES LO QUE FALTABA: Espacio reservado para las letras
+              reservedSize: 40, // Espacio para la inicial de cada día
               getTitlesWidget: (val, _) => Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Text(weekDays[val.toInt()], style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),

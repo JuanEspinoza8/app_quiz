@@ -13,7 +13,7 @@ class NotificationService {
     tz.initializeTimeZones();
     await _configureLocalTimeZone();
 
-    // 👇 AQUÍ ESTABA EL ERROR: Cambiamos 'ic_launcher' por 'launcher_icon'
+    // Ícono que genera flutter_launcher_icons (la app no tiene ic_launcher)
     const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
 
     const initSettings = InitializationSettings(android: androidInit);

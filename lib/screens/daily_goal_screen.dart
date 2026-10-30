@@ -104,7 +104,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor, // ✅ Dinámico
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
@@ -127,7 +127,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                         width: 100,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
+                          color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                         ),
@@ -154,7 +154,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor, // ✅ Dinámico
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
                     color: (_selectedCategory != null) ? const Color(0xFF6C63FF) : Colors.transparent,
@@ -171,10 +171,10 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                       labelStyle: GoogleFonts.poppins(color: Colors.grey),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
+                      fillColor: Colors.grey.withValues(alpha: 0.1),
                       prefixIcon: const Icon(Icons.category_rounded, color: Color(0xFF6C63FF)),
                     ),
-                    dropdownColor: Theme.of(context).cardColor, // ✅ Para que el menú no sea blanco
+                    dropdownColor: Theme.of(context).cardColor, // Para que el menú respete el modo oscuro
                     // initialValue solo se lee al crear el campo: la key lo recrea
                     // cuando "Desactivar Modo Examen" limpia la selección.
                     key: ValueKey(_selectedCategory),
@@ -194,7 +194,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
+                        color: Colors.grey.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(

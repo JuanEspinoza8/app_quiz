@@ -128,7 +128,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                       height: 80, width: 80,
                       margin: const EdgeInsets.only(top: 24),
                       decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro
+                          color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
                           image: _selectedImage != null ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover) : null
@@ -197,7 +197,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Theme.of(context).cardColor, // ✅ Dinámico
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))]
       ),
@@ -209,7 +209,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     return InputDecoration(
         hintText: hint,
         filled: true,
-        fillColor: Colors.grey.withValues(alpha: 0.1), // ✅ Neutro y suave
+        fillColor: Colors.grey.withValues(alpha: 0.1),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.all(16)
     );

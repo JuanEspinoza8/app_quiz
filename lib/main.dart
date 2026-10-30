@@ -161,7 +161,6 @@ class HomeScreen extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 👇 AQUÍ SALUDAMOS CON EL NOMBRE
                                 Text("¡Hola, $displayName! 👋", style: GoogleFonts.poppins(fontSize: 16, color: Theme.of(context).hintColor)),
                                 const SizedBox(height: 4),
                                 const Text("Vamos a aprender", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),

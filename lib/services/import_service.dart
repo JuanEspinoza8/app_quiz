@@ -56,13 +56,14 @@ class ImportService {
     // 2. IMPORTAR PROGRESO (Si existe en el archivo)
     if (progressMap != null) {
       final p = pBox.getAt(0)!;
-      // Solo restauramos la racha y configuración, NO sobreescribimos la fecha de hoy
+      // Restauramos meta, racha y horario del recordatorio.
       p.dailyGoal = progressMap['dailyGoal'] ?? 3;
       p.streak = progressMap['streak'] ?? 0;
       p.notificationHour = progressMap['notifHour'] ?? 18;
       p.notificationMinute = progressMap['notifMinute'] ?? 0;
 
-      // Opcional: Restaurar última fecha jugada
+      // answeredToday no viaja en el respaldo: con la última fecha jugada,
+      // rolloverIfNewDay decide si la racha sigue o se corta.
       if (progressMap['lastPlayed'] != null) {
         p.lastPlayedDate = DateTime.parse(progressMap['lastPlayed']);
       }

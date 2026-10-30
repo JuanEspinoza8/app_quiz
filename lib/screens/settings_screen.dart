@@ -28,9 +28,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _questionsBox = Hive.box<Question>('questionsBox');
   }
 
-  // ... (Tus métodos _pickTime, _backupData, _restoreData se mantienen igual) ...
-  // Solo copio los nuevos para ahorrar espacio, pégalos dentro de la clase
-
   Future<void> _pickTime(UserProgress p) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -209,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Widgets auxiliares (iguales a antes)
+  // Widgets auxiliares
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),

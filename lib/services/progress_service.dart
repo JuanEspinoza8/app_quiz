@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 import '../models/user_progress.dart';
-import '../models/daily_stats.dart'; // 👈 Importamos el nuevo modelo
+import '../models/daily_stats.dart';
 
 class ProgressService {
   final Box<UserProgress> _progressBox = Hive.box<UserProgress>('progressBox');

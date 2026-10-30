@@ -42,7 +42,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        // 👇 AGREGADO: SingleChildScrollView permite deslizar si sale el teclado
+        // Scroll para que el teclado no tape el formulario
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(30.0),
           child: Column(
@@ -99,8 +99,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onChanged: (v) => setState(() => _dailyGoal = v.toInt()),
               ),
 
-              // 👇 CAMBIO: Quitamos Spacer() y ponemos un espacio fijo grande
-              // para que el botón baje pero no rompa el scroll.
+              // Espacio fijo: Spacer() no funciona dentro de un scroll.
               const SizedBox(height: 40),
 
               ElevatedButton(
@@ -115,7 +114,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: const Text("Comenzar Aventura 🚀", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
 
-              // Un espacio extra abajo por si acaso
               const SizedBox(height: 20),
             ],
           ),

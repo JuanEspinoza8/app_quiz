@@ -31,7 +31,6 @@ class UserProgress extends HiveObject {
   @HiveField(8, defaultValue: false)
   bool isDarkMode;
 
-  // 👇 NUEVOS CAMPOS
   @HiveField(9, defaultValue: '')
   String userName; // Nombre del usuario
 
