@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
@@ -170,7 +169,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
               children: [
                 const Icon(Icons.emoji_events_rounded, size: 100, color: Colors.white),
                 const SizedBox(height: 20),
-                Text('¡Meta diaria cumplida!', style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text('¡Meta diaria cumplida!', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
                 const SizedBox(height: 10),
                 Text('Racha actual: ${p.streak} días 🔥', style: const TextStyle(color: Colors.white70, fontSize: 18)),
                 const SizedBox(height: 40),
@@ -241,10 +240,8 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                         Text(
                           q.questionText,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          // La familia (Poppins) viene del textTheme de la app.
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 10),
                         Container(
