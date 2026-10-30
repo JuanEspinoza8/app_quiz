@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -134,5 +135,8 @@ class QuizDailyApp extends StatelessWidget {
         centerTitle: false,
         titleTextStyle: TextStyle(color: foreground, fontSize: 24, fontWeight: FontWeight.bold),
         iconTheme: IconThemeData(color: foreground),
+        // Con fondo transparente, el AppBar no sabe de qué color poner los
+        // íconos de la barra de estado: se fijan según el tema.
+        systemOverlayStyle: foreground == Colors.white ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       );
 }
