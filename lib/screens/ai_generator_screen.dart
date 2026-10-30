@@ -118,6 +118,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(title: const Text('Generar con IA ✨')),
       body: Column(
@@ -171,7 +172,26 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(color: Colors.deepPurple.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                            child: Row(children: [const Icon(Icons.check_circle, color: Colors.deepPurple, size: 20), const SizedBox(width: 8), Expanded(child: Text(_attachedFileName!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple), overflow: TextOverflow.ellipsis)), IconButton(onPressed: () => setState(() { _attachedFileName=null; _attachedFileBytes=null; }), icon: const Icon(Icons.close, size: 18))]),
+                            child: Row(children: [
+                              const Icon(Icons.check_circle, color: Colors.deepPurple, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _attachedFileName!,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Quitar archivo',
+                                onPressed: () => setState(() {
+                                  _attachedFileName = null;
+                                  _attachedFileBytes = null;
+                                  _attachedMimeType = null;
+                                }),
+                                icon: const Icon(Icons.close, size: 18),
+                              ),
+                            ]),
                           ),
                         TextField(
                           controller: _textController,
@@ -234,7 +254,12 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: _saveAll,
-                      style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87, foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? Colors.white : Colors.black87,
+                        foregroundColor: isDark ? Colors.black : Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
                       child: const Text("GUARDAR TODO"),
                     )
                   ]
