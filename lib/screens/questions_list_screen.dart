@@ -28,10 +28,12 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
   Widget build(BuildContext context) {
     final repo = context.watch<QuestionRepository>();
     final List<String> categories = {'Todas', ...repo.categories}.toList();
+    // Si se borró la última pregunta de la materia filtrada, se vuelve a "Todas".
+    final selectedCategory = categories.contains(_selectedCategory) ? _selectedCategory : 'Todas';
     final search = _searchController.text.toLowerCase();
     final filteredQuestions = repo.all.where((q) {
       final matchText = q.questionText.toLowerCase().contains(search);
-      final matchCategory = _selectedCategory == 'Todas' || q.category == _selectedCategory;
+      final matchCategory = selectedCategory == 'Todas' || q.category == selectedCategory;
       final matchHard = !_showOnlyHard || q.errorCount > 0;
       return matchText && matchCategory && matchHard;
     }).toList();
@@ -89,7 +91,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                 ),
                 const SizedBox(width: 8),
                 ...categories.map((cat) {
-                  final isSelected = _selectedCategory == cat;
+                  final isSelected = selectedCategory == cat;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
@@ -129,36 +131,47 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))],
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: _buildLeadingIcon(question),
-                        title: Text(
-                          question.questionText,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                    color: Colors.grey.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(6)
-                                ),
-                                child: Text(question.category, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                              ),
-                              if (question.errorCount > 0) ...[
-                                const SizedBox(width: 8),
-                                Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red.shade300),
-                                Text(" ${question.errorCount}", style: TextStyle(fontSize: 11, color: Colors.red.shade300)),
-                              ]
-                            ],
+                      // ListTile dibuja el efecto de toque en el Material más cercano:
+                      // sin este, el fondo del Container lo taparía.
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: ListTile(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: _buildLeadingIcon(question),
+                          title: Text(
+                            question.questionText,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6)
+                                  ),
+                                  child: Text(question.category, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                                ),
+                                if (question.errorCount > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red.shade300),
+                                  Text(" ${question.errorCount}", style: TextStyle(fontSize: 11, color: Colors.red.shade300)),
+                                ]
+                              ],
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete_outline, color: Colors.red.shade300),
+                            tooltip: 'Borrar pregunta',
+                            onPressed: () => _delete(question),
+                          ),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddQuestionScreen(editQuestion: question))),
                         ),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddQuestionScreen(editQuestion: question))),
                       ),
                     );
                   },
@@ -167,6 +180,23 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
         ],
       ),
     );
+  }
+
+  /// Borra sin pedir confirmación y ofrece deshacer desde el SnackBar.
+  Future<void> _delete(Question question) async {
+    final repo = context.read<QuestionRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+    final key = await repo.delete(question);
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: const Text('Pregunta borrada'),
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () => repo.restore(key, question),
+        ),
+      ));
   }
 
   Widget _buildEmptyState() {
