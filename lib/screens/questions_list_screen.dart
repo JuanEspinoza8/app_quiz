@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
 import 'add_question_screen.dart';
+import '../services/storage_service.dart';
 
 class QuestionsListScreen extends StatefulWidget {
   const QuestionsListScreen({super.key});
@@ -25,7 +26,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final box = Hive.box<Question>('questionsBox');
+    final box = Hive.box<Question>(HiveBoxes.questions);
     final List<String> categories = {'Todas', ...box.values.map((q) => q.category)}.toList();
 
     return Scaffold(

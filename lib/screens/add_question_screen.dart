@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
+import '../services/storage_service.dart';
 
 class AddQuestionScreen extends StatefulWidget {
   final Question? editQuestion;
@@ -28,7 +29,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   @override
   void initState() {
     super.initState();
-    final box = Hive.box<Question>('questionsBox');
+    final box = Hive.box<Question>(HiveBoxes.questions);
     _existingCategories = box.values.map((q) => q.category).toSet().toList();
 
     if (widget.editQuestion != null) {
@@ -58,7 +59,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
 
   void _save() {
     if (_questionController.text.isEmpty || _categoryController.text.isEmpty) return;
-    final box = Hive.box<Question>('questionsBox');
+    final box = Hive.box<Question>(HiveBoxes.questions);
     final q = Question(
       id: widget.editQuestion?.id ?? const Uuid().v4(),
       questionText: _questionController.text.trim(),

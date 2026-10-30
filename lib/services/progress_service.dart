@@ -1,10 +1,11 @@
 import 'package:hive/hive.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
+import 'storage_service.dart';
 
 class ProgressService {
-  final Box<UserProgress> _progressBox = Hive.box<UserProgress>('progressBox');
-  final Box<DailyStats> _statsBox = Hive.box<DailyStats>('statsBox');
+  final Box<UserProgress> _progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
+  final Box<DailyStats> _statsBox = Hive.box<DailyStats>(HiveBoxes.stats);
 
   UserProgress get progress => _progressBox.getAt(0)!;
 

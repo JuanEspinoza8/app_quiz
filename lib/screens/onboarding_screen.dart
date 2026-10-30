@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/user_progress.dart';
 import '../theme/app_colors.dart';
+import '../services/storage_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -27,7 +28,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    final box = Hive.box<UserProgress>('progressBox');
+    final box = Hive.box<UserProgress>(HiveBoxes.progress);
     final p = box.getAt(0)!;
 
     p.userName = _nameController.text.trim();

@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../services/notification_service.dart';
 import '../services/data_sync_service.dart';
 import '../services/import_service.dart';
+import '../services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,8 +26,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _progressBox = Hive.box<UserProgress>('progressBox');
-    _questionsBox = Hive.box<Question>('questionsBox');
+    _progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
+    _questionsBox = Hive.box<Question>(HiveBoxes.questions);
   }
 
   Future<void> _pickTime(UserProgress p) async {

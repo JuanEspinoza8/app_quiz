@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/user_progress.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
+import '../services/storage_service.dart';
 
 class DailyGoalScreen extends StatefulWidget {
   const DailyGoalScreen({super.key});
@@ -23,7 +24,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
   @override
   void initState() {
     super.initState();
-    _progressBox = Hive.box<UserProgress>('progressBox');
+    _progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
 
     if (_progressBox.isEmpty) {
       _progressBox.add(UserProgress(
@@ -91,7 +92,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final questionBox = Hive.box<Question>('questionsBox');
+    final questionBox = Hive.box<Question>(HiveBoxes.questions);
     final categories = questionBox.values.map((q) => q.category).toSet().toList();
 
     return Scaffold(

@@ -7,15 +7,16 @@ import '../models/question.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
 import '../theme/app_colors.dart';
+import '../services/storage_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final progressBox = Hive.box<UserProgress>('progressBox');
-    final questionBox = Hive.box<Question>('questionsBox');
-    final statsBox = Hive.box<DailyStats>('statsBox');
+    final progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
+    final questionBox = Hive.box<Question>(HiveBoxes.questions);
+    final statsBox = Hive.box<DailyStats>(HiveBoxes.stats);
 
     final userProgress = progressBox.getAt(0)!;
     final allQuestions = questionBox.values.toList();

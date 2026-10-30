@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
 import '../services/progress_service.dart';
+import '../services/storage_service.dart';
 
 class DailyQuizScreen extends StatefulWidget {
   const DailyQuizScreen({super.key});
@@ -26,7 +27,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
   @override
   void initState() {
     super.initState();
-    _box = Hive.box<Question>('questionsBox');
+    _box = Hive.box<Question>(HiveBoxes.questions);
     _progressService = ProgressService();
     // Si la app quedó abierta de un día para otro, reinicia el contador antes
     // de decidir si la meta ya está cumplida.

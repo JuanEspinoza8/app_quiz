@@ -139,7 +139,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
-      valueListenable: Hive.box<UserProgress>('progressBox').listenable(),
+      valueListenable: Hive.box<UserProgress>(HiveBoxes.progress).listenable(),
       builder: (context, Box<UserProgress> box, _) {
         final p = box.getAt(0)!;
         // Si no hay nombre (por error), usamos "Estudiante"

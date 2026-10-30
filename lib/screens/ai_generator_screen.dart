@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/gemini_service.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
+import '../services/storage_service.dart';
 
 class AiGeneratorScreen extends StatefulWidget {
   const AiGeneratorScreen({super.key});
@@ -30,7 +31,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
   @override
   void initState() {
     super.initState();
-    final box = Hive.box<Question>('questionsBox');
+    final box = Hive.box<Question>(HiveBoxes.questions);
     _existingCategories = box.values.map((q) => q.category).toSet().toList();
   }
 
@@ -108,7 +109,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
   }
 
   Future<void> _saveAll() async {
-    final box = Hive.box<Question>('questionsBox');
+    final box = Hive.box<Question>(HiveBoxes.questions);
     await box.addAll(_generatedQuestions);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅')));

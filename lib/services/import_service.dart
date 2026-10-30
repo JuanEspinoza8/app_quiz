@@ -4,15 +4,16 @@ import 'package:hive/hive.dart';
 import '../models/question.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
+import 'storage_service.dart';
 
 class ImportService {
   static Future<String> importBackup(File file) async {
     final content = await file.readAsString();
     dynamic jsonData = jsonDecode(content);
 
-    final qBox = Hive.box<Question>('questionsBox');
-    final pBox = Hive.box<UserProgress>('progressBox');
-    final sBox = Hive.box<DailyStats>('statsBox');
+    final qBox = Hive.box<Question>(HiveBoxes.questions);
+    final pBox = Hive.box<UserProgress>(HiveBoxes.progress);
+    final sBox = Hive.box<DailyStats>(HiveBoxes.stats);
 
     int questionsAdded = 0;
 
