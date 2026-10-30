@@ -2,12 +2,12 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
-import '../services/progress_service.dart';
-import '../services/storage_service.dart';
+import '../data/progress_repository.dart';
+import '../data/question_repository.dart';
 
 class DailyQuizScreen extends StatefulWidget {
   const DailyQuizScreen({super.key});
@@ -17,8 +17,8 @@ class DailyQuizScreen extends StatefulWidget {
 }
 
 class _DailyQuizScreenState extends State<DailyQuizScreen> {
-  late final Box<Question> _box;
-  late final ProgressService _progressService;
+  late final QuestionRepository _questions;
+  late final ProgressRepository _progress;
   Question? _currentQuestion;
   bool _answered = false;
   int? _selectedIndex;
@@ -27,19 +27,19 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
   @override
   void initState() {
     super.initState();
-    _box = Hive.box<Question>(HiveBoxes.questions);
-    _progressService = ProgressService();
+    _questions = context.read<QuestionRepository>();
+    _progress = context.read<ProgressRepository>();
     // Si la app quedó abierta de un día para otro, reinicia el contador antes
     // de decidir si la meta ya está cumplida.
-    _progressService.rolloverIfNewDay();
+    _progress.rolloverIfNewDay();
     _loadSmartQuestion();
   }
 
   void _loadSmartQuestion() {
-    if (_box.isEmpty) return;
+    if (_questions.isEmpty) return;
 
-    final progress = _progressService.progress;
-    List<Question> candidates = _box.values.toList();
+    final progress = _progress.progress;
+    List<Question> candidates = _questions.all;
     String? currentModeMsg;
 
     // Quitamos las categorías desactivadas en Configuración
@@ -102,16 +102,8 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       HapticFeedback.vibrate();
     }
 
-    q.totalAttempts++;
-    if (!isCorrect) {
-      q.errorCount++;
-    } else {
-      q.correctCount++;
-      if (q.errorCount > 0) q.errorCount--;
-    }
-    q.save();
-
-    _progressService.incrementProgress(isCorrect);
+    _questions.recordAnswer(q, correct: isCorrect);
+    _progress.incrementProgress(isCorrect);
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(isCorrect ? '✨ ¡Correcto! Sigue así' : '❌ Incorrecto, repasaremos esto'),
@@ -156,11 +148,11 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_box.isEmpty) return const Scaffold(body: Center(child: Text('Agrega preguntas para empezar ✍️')));
+    if (_questions.isEmpty) return const Scaffold(body: Center(child: Text('Agrega preguntas para empezar ✍️')));
     if (_currentQuestion == null) return const Scaffold(body: Center(child: Text("¡No hay preguntas disponibles!")));
 
     final q = _currentQuestion!;
-    final p = _progressService.progress;
+    final p = context.watch<ProgressRepository>().progress;
 
     if (p.answeredToday >= p.dailyGoal) {
       return Scaffold(

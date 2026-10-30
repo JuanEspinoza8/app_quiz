@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../data/progress_repository.dart';
+import '../data/question_repository.dart';
 import '../models/question.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
 import '../theme/app_colors.dart';
-import '../services/storage_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
-    final questionBox = Hive.box<Question>(HiveBoxes.questions);
-    final statsBox = Hive.box<DailyStats>(HiveBoxes.stats);
-
-    final userProgress = progressBox.getAt(0)!;
-    final allQuestions = questionBox.values.toList();
+    final progressRepo = context.watch<ProgressRepository>();
+    final userProgress = progressRepo.progress;
+    final allQuestions = context.watch<QuestionRepository>().all;
 
     Map<String, List<Question>> questionsByCategory = {};
     for (var q in allQuestions) {
@@ -28,13 +26,9 @@ class ProfileScreen extends StatelessWidget {
 
     // Los aciertos salen del historial diario. errorCount no sirve para esto:
     // baja con cada acierto porque es el peso del repaso inteligente.
-    int totalAnswered = 0;
-    int totalCorrect = 0;
-    for (final s in statsBox.values) {
-      totalAnswered += s.questionsAnswered;
-      totalCorrect += s.correctAnswers;
-    }
-    final globalAccuracy = totalAnswered == 0 ? 0.0 : (totalCorrect / totalAnswered);
+    final totals = progressRepo.totals;
+    final totalAnswered = totals.answered;
+    final globalAccuracy = totalAnswered == 0 ? 0.0 : totals.correct / totalAnswered;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi Progreso')),
@@ -59,7 +53,7 @@ class ProfileScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
-              child: _buildWeeklyChart(statsBox, context),
+              child: _buildWeeklyChart(progressRepo, context),
             ),
 
             const SizedBox(height: 30),
@@ -114,21 +108,14 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklyChart(Box<DailyStats> statsBox, BuildContext context) {
+  Widget _buildWeeklyChart(ProgressRepository progress, BuildContext context) {
     final now = DateTime.now();
     final List<DailyStats?> weekData = [];
     final List<String> weekDays = [];
 
     for (int i = 6; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      try {
-        final stat = statsBox.values.firstWhere(
-              (s) => s.date.year == date.year && s.date.month == date.month && s.date.day == date.day,
-        );
-        weekData.add(stat);
-      } catch (e) {
-        weekData.add(null);
-      }
+      final date = DateTime(now.year, now.month, now.day - i);
+      weekData.add(progress.statsFor(date));
       weekDays.add(DateFormat.E('es').format(date).substring(0, 1).toUpperCase());
     }
 

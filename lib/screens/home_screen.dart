@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
+import '../data/progress_repository.dart';
 import '../models/user_progress.dart';
-import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 import 'add_question_screen.dart';
 import 'ai_generator_screen.dart';
@@ -13,89 +13,84 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: Hive.box<UserProgress>(HiveBoxes.progress).listenable(),
-      builder: (context, Box<UserProgress> box, _) {
-        final p = box.getAt(0)!;
-        final displayName = p.userName.isEmpty ? "Estudiante" : p.userName;
+    final p = context.watch<ProgressRepository>().progress;
+    final displayName = p.userName.isEmpty ? "Estudiante" : p.userName;
 
-        return Scaffold(
-          body: SafeArea(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Header(displayName: displayName),
-                        const SizedBox(height: 24),
-                        _ProgressCard(progress: p),
-                      ],
-                    ),
-                  ),
+    return Scaffold(
+      body: SafeArea(
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Header(displayName: displayName),
+                    const SizedBox(height: 24),
+                    _ProgressCard(progress: p),
+                  ],
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverGrid.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.1,
-                    children: [
-                      _MenuCard(
-                        title: "Quiz Diario",
-                        subtitle: "¡A jugar!",
-                        icon: Icons.play_arrow_rounded,
-                        color: AppColors.primary,
-                        onTap: () => Navigator.pushNamed(context, '/quiz'),
-                      ),
-                      _MenuCard(
-                        title: "Crear con IA",
-                        subtitle: "Mágico ✨",
-                        icon: Icons.auto_awesome,
-                        color: AppColors.pink,
-                        onTap: () => _push(context, const AiGeneratorScreen()),
-                      ),
-                      _MenuCard(
-                        title: "Agregar",
-                        subtitle: "Manual",
-                        icon: Icons.add_circle_outline,
-                        color: AppColors.teal,
-                        onTap: () => _push(context, const AddQuestionScreen()),
-                      ),
-                      _MenuCard(
-                        title: "Banco",
-                        subtitle: "Ver todas",
-                        icon: Icons.grid_view_rounded,
-                        color: AppColors.amber,
-                        onTap: () => Navigator.pushNamed(context, '/questions'),
-                      ),
-                      _MenuCard(
-                        title: "Perfil",
-                        subtitle: "Estadísticas",
-                        icon: Icons.person_outline,
-                        color: AppColors.tealDark,
-                        onTap: () => _push(context, const ProfileScreen()),
-                      ),
-                      _MenuCard(
-                        title: "Metas",
-                        subtitle: "Configurar",
-                        icon: Icons.flag_outlined,
-                        color: Colors.indigo,
-                        onTap: () => Navigator.pushNamed(context, '/goal'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverGrid.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.1,
+                children: [
+                  _MenuCard(
+                    title: "Quiz Diario",
+                    subtitle: "¡A jugar!",
+                    icon: Icons.play_arrow_rounded,
+                    color: AppColors.primary,
+                    onTap: () => Navigator.pushNamed(context, '/quiz'),
+                  ),
+                  _MenuCard(
+                    title: "Crear con IA",
+                    subtitle: "Mágico ✨",
+                    icon: Icons.auto_awesome,
+                    color: AppColors.pink,
+                    onTap: () => _push(context, const AiGeneratorScreen()),
+                  ),
+                  _MenuCard(
+                    title: "Agregar",
+                    subtitle: "Manual",
+                    icon: Icons.add_circle_outline,
+                    color: AppColors.teal,
+                    onTap: () => _push(context, const AddQuestionScreen()),
+                  ),
+                  _MenuCard(
+                    title: "Banco",
+                    subtitle: "Ver todas",
+                    icon: Icons.grid_view_rounded,
+                    color: AppColors.amber,
+                    onTap: () => Navigator.pushNamed(context, '/questions'),
+                  ),
+                  _MenuCard(
+                    title: "Perfil",
+                    subtitle: "Estadísticas",
+                    icon: Icons.person_outline,
+                    color: AppColors.tealDark,
+                    onTap: () => _push(context, const ProfileScreen()),
+                  ),
+                  _MenuCard(
+                    title: "Metas",
+                    subtitle: "Configurar",
+                    icon: Icons.flag_outlined,
+                    color: Colors.indigo,
+                    onTap: () => Navigator.pushNamed(context, '/goal'),
+                  ),
+                ],
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          ],
+        ),
+      ),
     );
   }
 

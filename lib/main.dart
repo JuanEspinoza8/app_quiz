@@ -3,6 +3,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'package:provider/provider.dart';
+
+import 'package:quiz_daily/data/progress_repository.dart';
+import 'package:quiz_daily/data/question_repository.dart';
 import 'package:quiz_daily/models/question.dart';
 import 'package:quiz_daily/models/user_progress.dart';
 import 'package:quiz_daily/models/daily_stats.dart';
@@ -14,7 +18,6 @@ import 'package:quiz_daily/screens/settings_screen.dart';
 import 'package:quiz_daily/screens/onboarding_screen.dart';
 import 'package:quiz_daily/screens/storage_error_screen.dart';
 import 'package:quiz_daily/services/notification_service.dart';
-import 'package:quiz_daily/services/progress_service.dart';
 import 'package:quiz_daily/services/storage_service.dart';
 import 'package:quiz_daily/theme/app_colors.dart';
 
@@ -42,39 +45,37 @@ Future<void> _start() async {
     return;
   }
 
-  final progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
-
-  // Inicialización de primera vez
-  if (progressBox.isEmpty) {
-    await progressBox.add(UserProgress(
-      dailyGoal: 5,
-      answeredToday: 0,
-      streak: 0,
-      lastPlayedDate: DateTime(2000, 1, 1),
-      notificationHour: 18,
-      notificationMinute: 0,
-      isDarkMode: false,
-      userName: '',
-      hiddenCategories: [],
-    ));
-  }
+  // Las pantallas acceden a los datos solo a través de estos repositorios,
+  // que se comparten con Provider.
+  final questions = QuestionRepository(Hive.box<Question>(HiveBoxes.questions));
+  final progress = ProgressRepository(
+    Hive.box<UserProgress>(HiveBoxes.progress),
+    Hive.box<DailyStats>(HiveBoxes.stats),
+  );
+  await progress.ensureInitialized();
 
   // Reinicia el progreso diario y la racha si cambió el día desde la última vez.
-  ProgressService().rolloverIfNewDay();
+  progress.rolloverIfNewDay();
 
   try {
     await NotificationService.init();
 
     // Reprogramamos el recordatorio al iniciar por si el sistema lo canceló
     // (pasa en algunas capas de Android con ahorro de batería agresivo).
-    final userPrefs = progressBox.getAt(0)!;
+    final userPrefs = progress.progress;
     await NotificationService.scheduleDaily(userPrefs.notificationHour, userPrefs.notificationMinute);
   } catch (e, stack) {
     // Un problema con las notificaciones no tiene que impedir usar la app.
     debugPrint('No se pudieron configurar las notificaciones: $e\n$stack');
   }
 
-  runApp(const QuizDailyApp());
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider.value(value: questions),
+      ChangeNotifierProvider.value(value: progress),
+    ],
+    child: const QuizDailyApp(),
+  ));
 }
 
 class QuizDailyApp extends StatelessWidget {
@@ -82,50 +83,46 @@ class QuizDailyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder(
-      valueListenable: Hive.box<UserProgress>(HiveBoxes.progress).listenable(),
-      builder: (context, Box<UserProgress> box, _) {
-        final p = box.getAt(0);
-        final isDark = p?.isDarkMode ?? false;
-        final bool showOnboarding = (p?.userName == null || p!.userName.isEmpty);
+    // select: el MaterialApp solo se reconstruye si cambian estos dos valores,
+    // no con cada respuesta del quiz.
+    final isDark = context.select<ProgressRepository, bool>((r) => r.progress.isDarkMode);
+    final showOnboarding = context.select<ProgressRepository, bool>((r) => r.progress.userName.isEmpty);
 
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'Quiz Daily',
-          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Quiz Daily',
+      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
 
-          // TEMA CLARO
-          theme: ThemeData(
-            useMaterial3: true,
-            brightness: Brightness.light,
-            colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.light),
-            scaffoldBackgroundColor: AppColors.lightBackground,
-            cardColor: Colors.white,
-            textTheme: GoogleFonts.poppinsTextTheme(),
-            appBarTheme: _appBarTheme(Colors.black87),
-          ),
+      // TEMA CLARO
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.light),
+        scaffoldBackgroundColor: AppColors.lightBackground,
+        cardColor: Colors.white,
+        textTheme: GoogleFonts.poppinsTextTheme(),
+        appBarTheme: _appBarTheme(Colors.black87),
+      ),
 
-          // TEMA OSCURO
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            brightness: Brightness.dark,
-            colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.dark, surface: AppColors.darkSurface),
-            scaffoldBackgroundColor: AppColors.darkBackground,
-            cardColor: AppColors.darkSurface,
-            textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
-            appBarTheme: _appBarTheme(Colors.white),
-          ),
+      // TEMA OSCURO
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.dark, surface: AppColors.darkSurface),
+        scaffoldBackgroundColor: AppColors.darkBackground,
+        cardColor: AppColors.darkSurface,
+        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+        appBarTheme: _appBarTheme(Colors.white),
+      ),
 
-          home: showOnboarding ? const OnboardingScreen() : const HomeScreen(),
+      home: showOnboarding ? const OnboardingScreen() : const HomeScreen(),
 
-          routes: {
-            '/home': (_) => const HomeScreen(),
-            '/questions': (_) => const QuestionsListScreen(),
-            '/goal': (_) => const DailyGoalScreen(),
-            '/quiz': (_) => const DailyQuizScreen(),
-            '/settings': (_) => const SettingsScreen(),
-          },
-        );
+      routes: {
+        '/home': (_) => const HomeScreen(),
+        '/questions': (_) => const QuestionsListScreen(),
+        '/goal': (_) => const DailyGoalScreen(),
+        '/quiz': (_) => const DailyQuizScreen(),
+        '/settings': (_) => const SettingsScreen(),
       },
     );
   }

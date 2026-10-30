@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/user_progress.dart';
-import '../models/question.dart';
+import 'package:provider/provider.dart';
+import '../data/progress_repository.dart';
+import '../data/question_repository.dart';
 import '../theme/app_colors.dart';
-import '../services/storage_service.dart';
 
 class DailyGoalScreen extends StatefulWidget {
   const DailyGoalScreen({super.key});
@@ -14,8 +13,6 @@ class DailyGoalScreen extends StatefulWidget {
 }
 
 class _DailyGoalScreenState extends State<DailyGoalScreen> {
-  late Box<UserProgress> _progressBox;
-  UserProgress? _progress;
   final _goalController = TextEditingController();
 
   String? _selectedCategory;
@@ -24,21 +21,10 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
   @override
   void initState() {
     super.initState();
-    _progressBox = Hive.box<UserProgress>(HiveBoxes.progress);
-
-    if (_progressBox.isEmpty) {
-      _progressBox.add(UserProgress(
-          dailyGoal: 3,
-          answeredToday: 0,
-          streak: 0,
-          lastPlayedDate: DateTime(2000, 1, 1)
-      ));
-    }
-
-    _progress = _progressBox.getAt(0);
-    _goalController.text = _progress!.dailyGoal.toString();
-    _selectedCategory = _progress?.targetCategory;
-    _selectedDate = _progress?.targetDate;
+    final progress = context.read<ProgressRepository>().progress;
+    _goalController.text = progress.dailyGoal.toString();
+    _selectedCategory = progress.targetCategory;
+    _selectedDate = progress.targetDate;
   }
 
   @override
@@ -70,14 +56,11 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
   }
 
   void _saveGoal() {
-    // Con una meta de 0 el quiz quedaría siempre en "Meta diaria cumplida".
-    final parsed = int.tryParse(_goalController.text.trim()) ?? 3;
-    final newGoal = parsed < 1 ? 1 : parsed;
-    _progress!
-      ..dailyGoal = newGoal
-      ..targetCategory = _selectedCategory
-      ..targetDate = _selectedDate
-      ..save();
+    context.read<ProgressRepository>().updateGoals(
+      dailyGoal: int.tryParse(_goalController.text.trim()) ?? 3,
+      targetCategory: _selectedCategory,
+      targetDate: _selectedDate,
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -92,8 +75,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final questionBox = Hive.box<Question>(HiveBoxes.questions);
-    final categories = questionBox.values.map((q) => q.category).toSet().toList();
+    final categories = context.watch<QuestionRepository>().categories;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Metas y Estudio')),

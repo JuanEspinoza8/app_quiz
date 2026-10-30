@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
+import '../data/question_repository.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
 import 'add_question_screen.dart';
-import '../services/storage_service.dart';
 
 class QuestionsListScreen extends StatefulWidget {
   const QuestionsListScreen({super.key});
@@ -26,8 +26,15 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final box = Hive.box<Question>(HiveBoxes.questions);
-    final List<String> categories = {'Todas', ...box.values.map((q) => q.category)}.toList();
+    final repo = context.watch<QuestionRepository>();
+    final List<String> categories = {'Todas', ...repo.categories}.toList();
+    final search = _searchController.text.toLowerCase();
+    final filteredQuestions = repo.all.where((q) {
+      final matchText = q.questionText.toLowerCase().contains(search);
+      final matchCategory = _selectedCategory == 'Todas' || q.category == _selectedCategory;
+      final matchHard = !_showOnlyHard || q.errorCount > 0;
+      return matchText && matchCategory && matchHard;
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Banco de Preguntas')),
@@ -108,30 +115,9 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
 
           // Lista de Preguntas
           Expanded(
-            child: ValueListenableBuilder(
-              valueListenable: box.listenable(),
-              builder: (context, Box<Question> box, _) {
-                final filteredQuestions = box.values.where((q) {
-                  final matchText = q.questionText.toLowerCase().contains(_searchController.text.toLowerCase());
-                  final matchCategory = _selectedCategory == 'Todas' || q.category == _selectedCategory;
-                  final matchHard = !_showOnlyHard || q.errorCount > 0;
-                  return matchText && matchCategory && matchHard;
-                }).toList();
-
-                if (filteredQuestions.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text('No encontramos nada', style: TextStyle(color: Colors.grey.shade500)),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
+            child: filteredQuestions.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   itemCount: filteredQuestions.length,
                   itemBuilder: (context, index) {
@@ -176,10 +162,21 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                       ),
                     );
                   },
-                );
-              },
-            ),
+                ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text('No encontramos nada', style: TextStyle(color: Colors.grey.shade500)),
         ],
       ),
     );

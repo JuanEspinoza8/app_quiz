@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:quiz_daily/data/progress_repository.dart';
+import 'package:quiz_daily/data/question_repository.dart';
 import 'package:quiz_daily/models/daily_stats.dart';
 import 'package:quiz_daily/models/question.dart';
 import 'package:quiz_daily/models/user_progress.dart';
@@ -16,6 +18,11 @@ void main() {
   late Box<Question> questions;
   late Box<UserProgress> progress;
   late Box<DailyStats> stats;
+  late QuestionRepository questionRepo;
+  late ProgressRepository progressRepo;
+
+  Future<String> import(File file) =>
+      ImportService.importBackup(file, questions: questionRepo, progress: progressRepo);
 
   Future<File> writeBackup(Object json) async {
     final file = File('${hiveDir.path}/backup.json');
@@ -28,6 +35,8 @@ void main() {
     questions = Hive.box<Question>(HiveBoxes.questions);
     progress = Hive.box<UserProgress>(HiveBoxes.progress);
     stats = Hive.box<DailyStats>(HiveBoxes.stats);
+    questionRepo = QuestionRepository(questions);
+    progressRepo = ProgressRepository(progress, stats);
     await progress.add(UserProgress(
       dailyGoal: 5,
       answeredToday: 2,
@@ -36,7 +45,11 @@ void main() {
     ));
   });
 
-  tearDown(() => tearDownTestHive(hiveDir));
+  tearDown(() async {
+    questionRepo.dispose();
+    progressRepo.dispose();
+    await tearDownTestHive(hiveDir);
+  });
 
   test('formato viejo: una lista de preguntas con las claves del modelo', () async {
     final file = await writeBackup([
@@ -57,7 +70,7 @@ void main() {
       },
     ]);
 
-    final message = await ImportService.importBackup(file);
+    final message = await import(file);
 
     expect(message, contains('2 preguntas'));
     expect(questions.length, 2);
@@ -106,7 +119,7 @@ void main() {
       ],
     });
 
-    await ImportService.importBackup(file);
+    await import(file);
 
     final q = questions.getAt(0)!;
     expect(q.questionText, '¿Capital de Italia?');
@@ -145,7 +158,7 @@ void main() {
       ],
     });
 
-    final message = await ImportService.importBackup(file);
+    final message = await import(file);
 
     expect(message, contains('1 preguntas'));
     expect(questions.length, 2);

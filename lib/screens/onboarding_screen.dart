@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/user_progress.dart';
+import 'package:provider/provider.dart';
+import '../data/progress_repository.dart';
 import '../theme/app_colors.dart';
-import '../services/storage_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -28,12 +27,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    final box = Hive.box<UserProgress>(HiveBoxes.progress);
-    final p = box.getAt(0)!;
-
-    p.userName = _nameController.text.trim();
-    p.dailyGoal = _dailyGoal;
-    p.save();
+    context.read<ProgressRepository>().completeOnboarding(
+      userName: _nameController.text.trim(),
+      dailyGoal: _dailyGoal,
+    );
 
     // Vamos al Home y quitamos esta pantalla del historial
     Navigator.pushReplacementNamed(context, '/home');

@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../data/question_repository.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
-import '../services/storage_service.dart';
 
 class AddQuestionScreen extends StatefulWidget {
   final Question? editQuestion;
@@ -29,8 +29,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   @override
   void initState() {
     super.initState();
-    final box = Hive.box<Question>(HiveBoxes.questions);
-    _existingCategories = box.values.map((q) => q.category).toSet().toList();
+    _existingCategories = context.read<QuestionRepository>().categories;
 
     if (widget.editQuestion != null) {
       final q = widget.editQuestion!;
@@ -59,7 +58,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
 
   void _save() {
     if (_questionController.text.isEmpty || _categoryController.text.isEmpty) return;
-    final box = Hive.box<Question>(HiveBoxes.questions);
+    final repo = context.read<QuestionRepository>();
     final q = Question(
       id: widget.editQuestion?.id ?? const Uuid().v4(),
       questionText: _questionController.text.trim(),
@@ -74,10 +73,9 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       correctCount: widget.editQuestion?.correctCount ?? 0,
     );
     if (widget.editQuestion != null) {
-      final idx = box.values.toList().indexOf(widget.editQuestion!);
-      if (idx != -1) box.putAt(idx, q);
+      repo.update(widget.editQuestion!, q);
     } else {
-      box.add(q);
+      repo.add(q);
     }
     Navigator.pop(context);
   }
