@@ -24,7 +24,7 @@ Proyecto personal. No está publicado en ninguna tienda.
 - **Repaso inteligente:** las preguntas que fallás aparecen más seguido hasta que las acertás.
 - **Modo examen:** prioriza una materia hasta la fecha del parcial.
 - **Generación con IA (Gemini):** a partir de texto, un PDF o una imagen genera 5 preguntas de opción múltiple con explicación. Se pueden revisar y editar antes de guardarlas.
-- **Banco de preguntas** con búsqueda, filtro por materia y filtro de "difíciles". Carga manual con imagen opcional.
+- **Banco de preguntas** con búsqueda, filtro por materia y filtro de "difíciles". Carga manual con imagen opcional, edición y borrado (con "Deshacer").
 - **Estadísticas:** precisión global y por materia, gráfico de la semana y logros.
 - **Recordatorio diario** con notificación local a la hora elegida.
 - **Respaldo y restauración** en un archivo JSON que se puede compartir.
@@ -37,6 +37,7 @@ Proyecto personal. No está publicado en ninguna tienda.
 |---|---|
 | App | Flutter 3.35+ / Dart 3.9 |
 | Persistencia local | Hive + `hive_generator` (adapters generados con `build_runner`) |
+| Estado | `provider` (repositorios como `ChangeNotifier`) |
 | IA | Gemini 2.5 Flash con `google_generative_ai` |
 | Notificaciones | `flutter_local_notifications`, `timezone`, `flutter_timezone` |
 | UI | Material 3, `fl_chart`, `google_fonts` |
@@ -46,22 +47,29 @@ Proyecto personal. No está publicado en ninguna tienda.
 
 ```
 lib/
-├── main.dart                  # Arranque: Hive, cambio de día, notificaciones, tema y HomeScreen
+├── main.dart                  # Arranque: abre Hive, crea los repositorios y los comparte con Provider
 ├── models/                    # Question, UserProgress, DailyStats (+ adapters *.g.dart generados)
+├── data/
+│   ├── question_repository.dart   # Preguntas: alta, edición, borrado/deshacer, respuestas
+│   └── progress_repository.dart   # Meta, racha, cambio de día, preferencias e historial diario
 ├── screens/                   # Una pantalla por archivo
 ├── services/
 │   ├── storage_service.dart       # Abre las cajas de Hive (nombres en HiveBoxes) y maneja errores
-│   ├── progress_service.dart      # Meta diaria, racha y cambio de día
 │   ├── gemini_service.dart        # Prompt, esquema JSON y validación de la respuesta de la IA
 │   ├── notification_service.dart  # Recordatorio diario en la zona horaria del dispositivo
 │   ├── data_sync_service.dart     # Exporta el respaldo JSON
 │   └── import_service.dart        # Importa respaldos (formato viejo y nuevo)
+├── widgets/day_rollover_on_resume.dart  # Recalcula el día cuando la app vuelve del segundo plano
 └── theme/app_colors.dart      # Paleta de colores
-test/                          # Tests unitarios de los servicios
+test/
+├── data/                      # Repositorios (Hive en una carpeta temporal)
+├── services/                  # Importación y validación de Gemini
+└── screens/                   # Widgets del quiz, el banco y el cambio de día
 ```
 
-- **Screens:** widgets de Flutter. Leen las cajas de Hive directamente y se redibujan con `ValueListenableBuilder(box.listenable())`. No hay una capa de estado aparte (Provider, Riverpod, etc.).
-- **Services:** la lógica que no depende de la UI (racha, validación de la IA, respaldos). Es la parte cubierta por tests.
+- **Screens:** widgets de Flutter. No tocan Hive: leen los repositorios con `context.watch` / `context.select` y escriben con `context.read`.
+- **Data (repositorios):** son el único acceso a Hive y extienden `ChangeNotifier`. Escuchan su caja con `box.watch()`, así que cualquier cambio (una respuesta, una importación) redibuja las pantallas que lo usan. La lógica de racha y cambio de día vive en `ProgressRepository`.
+- **Services:** integraciones y tareas puntuales: Gemini, notificaciones, respaldo y apertura de Hive.
 - **Models + Hive:** tres cajas.
   - `questionsBox`: las preguntas (`Question`).
   - `progressBox`: un único `UserProgress` con meta, racha y preferencias.
@@ -117,19 +125,21 @@ flutter analyze
 flutter test
 ```
 
-Cubren `ProgressService` (cambio de día, racha consecutiva y rota, meta cumplida, historial diario), `ImportService` (respaldos en formato viejo y nuevo, duplicados) y la validación de las respuestas de Gemini. Hive corre en una carpeta temporal y la fecha se inyecta, así que los tests no dependen del reloj ni de un dispositivo.
+- **Repositorios:** cambio de día, racha consecutiva y rota, meta cumplida, historial diario, preferencias, borrado y deshacer.
+- **Servicios:** importación de respaldos (formato viejo y nuevo, duplicados) y validación de las respuestas de Gemini.
+- **Widgets:** el quiz se desbloquea al día siguiente de cumplir la meta, responder suma al progreso, borrar y deshacer en el Banco, y el cambio de día al volver a la app.
+
+La fecha se inyecta en `ProgressRepository`, así que los tests no dependen del reloj. Los unitarios usan Hive en una carpeta temporal; los de widgets, cajas en memoria.
 
 ## Limitaciones conocidas
 
 - **Solo probada en Android.** Las carpetas de iOS, web y escritorio son las que genera Flutter y las notificaciones solo se configuran para Android.
 - **La API key viaja en el APK.** No hay backend propio (ver la sección de la API key).
 - **`google_generative_ai` está deprecado** por Google en favor de Firebase AI Logic. Migrar está pendiente.
-- **No hay capa de estado ni de repositorio:** las pantallas acceden a Hive directamente.
-- **No se pueden borrar preguntas** desde la app.
-- **El cambio de día se calcula al abrir la app o el quiz.** Si la app queda en segundo plano de un día para otro, el inicio muestra el progreso del día anterior hasta entrar al quiz.
+- **Fuente:** Poppins se descarga con `google_fonts` la primera vez que se abre la app. Sin conexión se usa la fuente del sistema.
 - **Imágenes:** se guarda la ruta del archivo que devuelve `image_picker`, que puede estar en la caché de la app. El respaldo JSON no incluye las imágenes.
 - **No está lista para publicar:** el `applicationId` es `com.example.quiz_daily` y el build de release se firma con la clave de debug.
-- Hay tests unitarios de los servicios, pero no tests de widgets.
+- **Tests de widgets parciales:** cubren el quiz, el Banco y el cambio de día; el resto de las pantallas no tiene.
 
 ## Autor
 
