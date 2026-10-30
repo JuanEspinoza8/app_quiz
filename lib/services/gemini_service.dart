@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 import '../models/question.dart';
@@ -72,31 +72,27 @@ class GeminiService {
       model: 'gemini-2.5-flash',
       apiKey: _apiKey,
       httpClient: _buildHttpClient(),
+      // Pedimos JSON con un esquema fijo en lugar de limpiar texto libre.
+      generationConfig: GenerationConfig(
+        responseMimeType: 'application/json',
+        responseSchema: _responseSchema,
+      ),
     );
 
-    // Construimos la lista de "evitar"
-    String avoidText = "";
-    if (avoidQuestions != null && avoidQuestions.isNotEmpty) {
-      avoidText = "NO generes preguntas similares a estas: ${avoidQuestions.join(', ')}";
-    }
+    final avoidRule = (avoidQuestions != null && avoidQuestions.isNotEmpty)
+        ? '- NO generes preguntas similares a estas: ${avoidQuestions.join(', ')}'
+        : '';
 
-    // El prompt base
     final fullPrompt = '''
       Actúa como un profesor experto creando un examen.
-      Genera 5 preguntas de opción múltiple NUEVAS basadas en el material proporcionado (Texto o Archivo adjunto)
-      pero en ningun momento hacer mencion al mismo, ademas las opciones incorrectas no deben ser absurdas, deben parecer posibles pero ser erroneas.
-      
+      Genera 5 preguntas de opción múltiple NUEVAS basadas en el material proporcionado (texto o archivo adjunto),
+      sin mencionar el material. Las opciones incorrectas no deben ser absurdas: tienen que parecer posibles pero ser erróneas.
+
       REGLAS OBLIGATORIAS:
-      1. La categoría de TODAS debe ser: "$userCategory".
-      2. $avoidText
-      3. Preguntas DIRECTAS y AUTÓNOMAS.
-      
-      FORMATO SALIDA (JSON puro Array []):
-      - "questionText": Enunciado.
-      - "options": Array de 4 respuestas.
-      - "correctAnswerIndex": 0-3.
-      - "category": "$userCategory".
-      - "explanation": Breve porqué.
+      - Preguntas DIRECTAS y AUTÓNOMAS.
+      - Cada pregunta tiene exactamente 4 opciones y "correctAnswerIndex" es el índice (0 a 3) de la correcta.
+      - "explanation" explica brevemente por qué es la correcta.
+      $avoidRule
 
       CONTEXTO ADICIONAL DEL USUARIO:
       "$promptText"
@@ -111,31 +107,80 @@ class GeminiService {
 
     try {
       final response = await model.generateContent([Content.multi(parts)]);
-
       final responseText = response.text;
-      if (responseText == null) throw Exception("La IA no devolvió respuesta.");
-
-      final cleanJson = responseText.replaceAll('```json', '').replaceAll('```', '').trim();
-      final List<dynamic> jsonList = jsonDecode(cleanJson);
-      final uuid = const Uuid();
-
-      return jsonList.map((item) {
-        return Question(
-          id: uuid.v4(),
-          questionText: item['questionText'],
-          options: List<String>.from(item['options']),
-          correctAnswerIndex: item['correctAnswerIndex'],
-          category: item['category'] ?? userCategory,
-          createdAt: DateTime.now(),
-          explanation: item['explanation'],
-          errorCount: 0,
-          totalAttempts: 0,
-        );
-      }).toList();
-
+      if (responseText == null || responseText.trim().isEmpty) {
+        throw const GeminiException('La IA no devolvió respuesta. Probá de nuevo.');
+      }
+      return parseQuestions(responseText, category: userCategory);
     } catch (e) {
-      print("Error generando preguntas: $e");
+      debugPrint('Error generando preguntas: $e');
       rethrow;
     }
+  }
+
+  static final _responseSchema = Schema.array(
+    items: Schema.object(
+      properties: {
+        'questionText': Schema.string(description: 'Enunciado de la pregunta'),
+        'options': Schema.array(items: Schema.string(), description: 'Exactamente 4 opciones'),
+        'correctAnswerIndex': Schema.integer(description: 'Índice de la opción correcta, de 0 a 3'),
+        'explanation': Schema.string(description: 'Por qué esa opción es la correcta'),
+      },
+      requiredProperties: ['questionText', 'options', 'correctAnswerIndex', 'explanation'],
+    ),
+  );
+
+  /// Convierte la respuesta JSON de Gemini en preguntas de la [category]
+  /// elegida. Descarta las que no tengan enunciado, exactamente 4 opciones y
+  /// un índice correcto dentro de rango; si no queda ninguna, lanza
+  /// [GeminiException].
+  static List<Question> parseQuestions(String responseText, {required String category}) {
+    final clean = responseText.replaceAll('```json', '').replaceAll('```', '').trim();
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(clean);
+    } on FormatException {
+      throw const GeminiException('La IA devolvió una respuesta que no es JSON válido. Probá de nuevo.');
+    }
+    if (decoded is! List) {
+      throw const GeminiException('La IA devolvió un formato inesperado. Probá de nuevo.');
+    }
+
+    const uuid = Uuid();
+    final questions = <Question>[];
+    for (final item in decoded) {
+      final question = _questionFromJson(item, category, uuid);
+      if (question != null) questions.add(question);
+    }
+
+    if (questions.isEmpty) {
+      throw const GeminiException('La IA no devolvió preguntas válidas. Probá de nuevo.');
+    }
+    return questions;
+  }
+
+  static Question? _questionFromJson(Object? item, String category, Uuid uuid) {
+    if (item is! Map) return null;
+
+    final text = item['questionText'];
+    final options = item['options'];
+    final correct = item['correctAnswerIndex'];
+    final explanation = item['explanation'];
+
+    if (text is! String || text.trim().isEmpty) return null;
+    if (options is! List || options.length != 4) return null;
+    if (options.any((o) => o is! String || o.trim().isEmpty)) return null;
+    if (correct is! int || correct < 0 || correct >= options.length) return null;
+
+    return Question(
+      id: uuid.v4(),
+      questionText: text.trim(),
+      options: options.map((o) => (o as String).trim()).toList(),
+      correctAnswerIndex: correct,
+      category: category,
+      createdAt: DateTime.now(),
+      explanation: (explanation is String && explanation.trim().isNotEmpty) ? explanation.trim() : null,
+    );
   }
 }

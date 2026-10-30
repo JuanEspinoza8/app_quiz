@@ -34,7 +34,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'], withData: true);
-    if (result != null) {
+    if (result != null && mounted) {
       final file = result.files.single;
       setState(() {
         _attachedFileName = file.name;
@@ -68,14 +68,20 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
         fileBytes: _attachedFileBytes,
         mimeType: _attachedMimeType,
       );
+      // El usuario puede haber salido de la pantalla mientras esperaba.
+      if (!mounted) return;
       setState(() {
-        if (append) _generatedQuestions.addAll(newQuestions);
-        else _generatedQuestions = newQuestions;
+        if (append) {
+          _generatedQuestions.addAll(newQuestions);
+        } else {
+          _generatedQuestions = newQuestions;
+        }
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
