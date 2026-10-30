@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/gemini_service.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 
 class AiGeneratorScreen extends StatefulWidget {
   const AiGeneratorScreen({super.key});
@@ -195,7 +196,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                       icon: Icon(_generatedQuestions.isEmpty ? Icons.auto_awesome : Icons.add),
                       label: Text(_generatedQuestions.isEmpty ? 'Generar Preguntas' : 'Generar +5 Más'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _generatedQuestions.isEmpty ? const Color(0xFF6C63FF) : const Color(0xFF4ECDC4),
+                        backgroundColor: _generatedQuestions.isEmpty ? AppColors.primary : AppColors.teal,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

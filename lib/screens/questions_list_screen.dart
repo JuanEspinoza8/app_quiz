@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 import 'add_question_screen.dart';
 
 class QuestionsListScreen extends StatefulWidget {
@@ -68,13 +69,13 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                   selected: _showOnlyHard,
                   onSelected: (val) => setState(() => _showOnlyHard = val),
                   backgroundColor: Theme.of(context).cardColor,
-                  selectedColor: const Color(0xFFFF6584).withValues(alpha: 0.2),
+                  selectedColor: AppColors.pink.withValues(alpha: 0.2),
                   labelStyle: TextStyle(
-                      color: _showOnlyHard ? const Color(0xFFFF6584) : Theme.of(context).textTheme.bodyMedium?.color
+                      color: _showOnlyHard ? AppColors.pink : Theme.of(context).textTheme.bodyMedium?.color
                   ),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: _showOnlyHard ? const Color(0xFFFF6584) : Colors.grey.withValues(alpha: 0.2))
+                      side: BorderSide(color: _showOnlyHard ? AppColors.pink : Colors.grey.withValues(alpha: 0.2))
                   ),
                   showCheckmark: false,
                 ),
@@ -88,7 +89,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                       selected: isSelected,
                       onSelected: (selected) { if (selected) setState(() => _selectedCategory = cat); },
                       backgroundColor: Theme.of(context).cardColor,
-                      selectedColor: const Color(0xFF6C63FF),
+                      selectedColor: AppColors.primary,
                       labelStyle: TextStyle(color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
@@ -196,10 +197,10 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
     return Container(
       width: 50, height: 50,
       decoration: BoxDecoration(
-        color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
+        color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(Icons.quiz, color: Color(0xFF6C63FF)),
+      child: const Icon(Icons.quiz, color: AppColors.primary),
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/question.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
+import '../theme/app_colors.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -86,9 +87,9 @@ class ProfileScreen extends StatelessWidget {
       children: [
         Expanded(child: _statCard(context, "Racha", "${progress.streak} días", Icons.local_fire_department, Colors.orange)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard(context, "Total", "$totalAnswered", Icons.check_circle_outline, const Color(0xFF6C63FF))),
+        Expanded(child: _statCard(context, "Total", "$totalAnswered", Icons.check_circle_outline, AppColors.primary)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard(context, "Precisión", "${(accuracy * 100).toStringAsFixed(0)}%", Icons.pie_chart_outline, const Color(0xFF4ECDC4))),
+        Expanded(child: _statCard(context, "Precisión", "${(accuracy * 100).toStringAsFixed(0)}%", Icons.pie_chart_outline, AppColors.teal)),
       ],
     );
   }
@@ -135,7 +136,7 @@ class ProfileScreen extends StatelessWidget {
         alignment: BarChartAlignment.spaceAround,
         maxY: 20,
         barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(getTooltipColor: (_) => const Color(0xFF6C63FF)),
+          touchTooltipData: BarTouchTooltipData(getTooltipColor: (_) => AppColors.primary),
         ),
         titlesData: FlTitlesData(
           show: true,
@@ -167,8 +168,8 @@ class ProfileScreen extends StatelessWidget {
                 width: 14,
                 borderRadius: BorderRadius.circular(4),
                 rodStackItems: [
-                  BarChartRodStackItem(0, correct, const Color(0xFF6C63FF)),
-                  BarChartRodStackItem(correct, total, const Color(0xFF6C63FF).withValues(alpha: 0.3)),
+                  BarChartRodStackItem(0, correct, AppColors.primary),
+                  BarChartRodStackItem(correct, total, AppColors.primary.withValues(alpha: 0.3)),
                 ],
               ),
             ],
@@ -225,9 +226,9 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Color _getColorForAccuracy(double accuracy) {
-    if (accuracy >= 0.8) return const Color(0xFF4ECDC4);
+    if (accuracy >= 0.8) return AppColors.teal;
     if (accuracy >= 0.5) return Colors.orangeAccent;
-    return const Color(0xFFFF6584);
+    return AppColors.pink;
   }
 
   Widget _buildAchievementsGrid(BuildContext context, UserProgress p, int totalAnswered, double accuracy, int totalQuestions) {
@@ -255,10 +256,10 @@ class ProfileScreen extends StatelessWidget {
           triggerMode: TooltipTriggerMode.tap,
           child: Container(
             decoration: BoxDecoration(
-              color: isUnlocked ? const Color(0xFFFFBC42) : Theme.of(context).cardColor,
+              color: isUnlocked ? AppColors.amber : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: isUnlocked
-                  ? [BoxShadow(color: const Color(0xFFFFBC42).withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
+                  ? [BoxShadow(color: AppColors.amber.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
                   : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)],
             ),
             child: Column(

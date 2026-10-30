@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/user_progress.dart';
+import '../theme/app_colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -50,7 +51,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20), // Un poco de aire arriba
-              const Icon(Icons.waving_hand_rounded, size: 60, color: Color(0xFF6C63FF)),
+              const Icon(Icons.waving_hand_rounded, size: 60, color: AppColors.primary),
               const SizedBox(height: 20),
               Text(
                 "¡Bienvenido!",
@@ -87,7 +88,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text("Preguntas diarias", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-                  Text("$_dailyGoal", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6C63FF), fontSize: 18)),
+                  Text("$_dailyGoal", style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 18)),
                 ],
               ),
               Slider(
@@ -95,7 +96,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 min: 1,
                 max: 20,
                 divisions: 19,
-                activeColor: const Color(0xFF6C63FF),
+                activeColor: AppColors.primary,
                 onChanged: (v) => setState(() => _dailyGoal = v.toInt()),
               ),
 
@@ -105,7 +106,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ElevatedButton(
                 onPressed: _finish,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

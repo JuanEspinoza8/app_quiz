@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 import '../models/user_progress.dart';
 import '../models/question.dart'; // Importamos modelo Question
+import '../theme/app_colors.dart';
 import '../services/notification_service.dart';
 import '../services/data_sync_service.dart';
 import '../services/import_service.dart';
@@ -36,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(primary: Color(0xFF6C63FF)),
+            colorScheme: const ColorScheme.light(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -102,7 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return SwitchListTile(
                           title: Text(cat),
                           value: !isHidden, // Si NO está oculta, está activa
-                          activeThumbColor: const Color(0xFF6C63FF),
+                          activeThumbColor: AppColors.primary,
                           onChanged: (val) {
                             setModalState(() {
                               if (val) {
@@ -155,11 +156,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text(isDark ? "Activado 🌙" : "Desactivado ☀️", style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                   secondary: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: const Color(0xFF6C63FF).withValues(alpha: 0.1), shape: BoxShape.circle),
-                    child: Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: const Color(0xFF6C63FF), size: 24),
+                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+                    child: Icon(isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: AppColors.primary, size: 24),
                   ),
                   value: isDark,
-                  activeThumbColor: const Color(0xFF6C63FF),
+                  activeThumbColor: AppColors.primary,
                   onChanged: (val) {
                     p.isDarkMode = val;
                     p.save();
@@ -174,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: "Recordatorio Diario",
                   subtitle: "Te avisaremos a las ${time.format(context)}",
                   icon: Icons.notifications_active_rounded,
-                  color: const Color(0xFFFFBC42),
+                  color: AppColors.amber,
                   trailing: const Icon(Icons.edit, color: Colors.grey),
                   onTap: () => _pickTime(p),
                 ),
@@ -187,7 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: "Crear Respaldo",
                   subtitle: "Guarda todo tu progreso",
                   icon: Icons.cloud_upload_rounded,
-                  color: const Color(0xFF4ECDC4),
+                  color: AppColors.teal,
                   onTap: _backupData,
                 ),
                 const Divider(height: 1, indent: 60),
@@ -195,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: "Restaurar Copia",
                   subtitle: "Recupera tus datos",
                   icon: Icons.cloud_download_rounded,
-                  color: const Color(0xFF6C63FF),
+                  color: AppColors.primary,
                   onTap: _restoreData,
                 ),
               ]),

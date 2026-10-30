@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/user_progress.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 
 class DailyGoalScreen extends StatefulWidget {
   const DailyGoalScreen({super.key});
@@ -56,8 +57,8 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
         // Aseguramos que el DatePicker use el tema correcto o forzamos uno compatible
         return Theme(
           data: Theme.of(context).brightness == Brightness.dark
-              ? ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: Color(0xFF6C63FF)))
-              : ThemeData.light().copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF6C63FF))),
+              ? ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: AppColors.primary))
+              : ThemeData.light().copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primary)),
           child: child!,
         );
       },
@@ -81,7 +82,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
       SnackBar(
         content: Text('Objetivos actualizados 🎯', style: GoogleFonts.poppins(color: Colors.white)),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF6C63FF),
+        backgroundColor: AppColors.primary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
@@ -112,8 +113,8 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: const Color(0xFFFFBC42).withValues(alpha: 0.1), shape: BoxShape.circle),
-                    child: const Icon(Icons.emoji_events_rounded, size: 40, color: Color(0xFFFFBC42)),
+                    decoration: BoxDecoration(color: AppColors.amber.withValues(alpha: 0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.emoji_events_rounded, size: 40, color: AppColors.amber),
                   ),
                   const SizedBox(height: 16),
                   Text("Tu Meta Diaria", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -135,7 +136,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                           controller: _goalController,
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.number,
-                          style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: const Color(0xFF6C63FF)),
+                          style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.primary),
                           decoration: const InputDecoration(border: InputBorder.none, isDense: true),
                         ),
                       ),
@@ -157,7 +158,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                    color: (_selectedCategory != null) ? const Color(0xFF6C63FF) : Colors.transparent,
+                    color: (_selectedCategory != null) ? AppColors.primary : Colors.transparent,
                     width: 2
                 ),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
@@ -172,7 +173,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       filled: true,
                       fillColor: Colors.grey.withValues(alpha: 0.1),
-                      prefixIcon: const Icon(Icons.category_rounded, color: Color(0xFF6C63FF)),
+                      prefixIcon: const Icon(Icons.category_rounded, color: AppColors.primary),
                     ),
                     dropdownColor: Theme.of(context).cardColor, // Para que el menú respete el modo oscuro
                     // initialValue solo se lee al crear el campo: la key lo recrea
@@ -199,7 +200,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today_rounded, color: Color(0xFF4ECDC4)),
+                          const Icon(Icons.calendar_today_rounded, color: AppColors.teal),
                           const SizedBox(width: 16),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,7 +240,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
             ElevatedButton(
               onPressed: _saveGoal,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

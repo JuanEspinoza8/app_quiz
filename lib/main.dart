@@ -18,6 +18,7 @@ import 'package:quiz_daily/screens/storage_error_screen.dart';
 import 'package:quiz_daily/services/notification_service.dart';
 import 'package:quiz_daily/services/progress_service.dart';
 import 'package:quiz_daily/services/storage_service.dart';
+import 'package:quiz_daily/theme/app_colors.dart';
 
 Future<void> main() async {
   // Aseguramos que el motor gráfico esté listo antes de cualquier lógica
@@ -99,8 +100,8 @@ class QuizDailyApp extends StatelessWidget {
           theme: ThemeData(
             useMaterial3: true,
             brightness: Brightness.light,
-            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6C63FF), brightness: Brightness.light),
-            scaffoldBackgroundColor: const Color(0xFFF5F5FA),
+            colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.light),
+            scaffoldBackgroundColor: AppColors.lightBackground,
             cardColor: Colors.white,
             textTheme: GoogleFonts.poppinsTextTheme(),
             appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0, centerTitle: false, titleTextStyle: TextStyle(color: Colors.black87, fontSize: 24, fontWeight: FontWeight.bold), iconTheme: IconThemeData(color: Colors.black87)),
@@ -110,9 +111,9 @@ class QuizDailyApp extends StatelessWidget {
           darkTheme: ThemeData(
             useMaterial3: true,
             brightness: Brightness.dark,
-            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6C63FF), brightness: Brightness.dark, surface: const Color(0xFF1E1E1E)),
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            cardColor: const Color(0xFF1E1E1E),
+            colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary, brightness: Brightness.dark, surface: AppColors.darkSurface),
+            scaffoldBackgroundColor: AppColors.darkBackground,
+            cardColor: AppColors.darkSurface,
             textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
             appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0, centerTitle: false, titleTextStyle: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold), iconTheme: IconThemeData(color: Colors.white)),
           ),
@@ -186,11 +187,11 @@ class HomeScreen extends StatelessWidget {
                     mainAxisSpacing: 16,
                     childAspectRatio: 1.1,
                     children: [
-                      _MenuCard(title: "Quiz Diario", subtitle: "¡A jugar!", icon: Icons.play_arrow_rounded, color: const Color(0xFF6C63FF), isPrimary: true, onTap: () => Navigator.pushNamed(context, '/quiz')),
-                      _MenuCard(title: "Crear con IA", subtitle: "Mágico ✨", icon: Icons.auto_awesome, color: const Color(0xFFFF6584), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiGeneratorScreen()))),
-                      _MenuCard(title: "Agregar", subtitle: "Manual", icon: Icons.add_circle_outline, color: const Color(0xFF4ECDC4), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddQuestionScreen()))),
-                      _MenuCard(title: "Banco", subtitle: "Ver todas", icon: Icons.grid_view_rounded, color: const Color(0xFFFFBC42), onTap: () => Navigator.pushNamed(context, '/questions')),
-                      _MenuCard(title: "Perfil", subtitle: "Estadísticas", icon: Icons.person_outline, color: const Color(0xFF1A535C), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
+                      _MenuCard(title: "Quiz Diario", subtitle: "¡A jugar!", icon: Icons.play_arrow_rounded, color: AppColors.primary, isPrimary: true, onTap: () => Navigator.pushNamed(context, '/quiz')),
+                      _MenuCard(title: "Crear con IA", subtitle: "Mágico ✨", icon: Icons.auto_awesome, color: AppColors.pink, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiGeneratorScreen()))),
+                      _MenuCard(title: "Agregar", subtitle: "Manual", icon: Icons.add_circle_outline, color: AppColors.teal, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddQuestionScreen()))),
+                      _MenuCard(title: "Banco", subtitle: "Ver todas", icon: Icons.grid_view_rounded, color: AppColors.amber, onTap: () => Navigator.pushNamed(context, '/questions')),
+                      _MenuCard(title: "Perfil", subtitle: "Estadísticas", icon: Icons.person_outline, color: AppColors.tealDark, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
                       _MenuCard(title: "Metas", subtitle: "Configurar", icon: Icons.flag_outlined, color: Colors.indigo, onTap: () => Navigator.pushNamed(context, '/goal')),
                     ],
                   ),
@@ -208,7 +209,7 @@ class HomeScreen extends StatelessWidget {
     final double progress = (p.dailyGoal > 0) ? (p.answeredToday / p.dailyGoal) : 0;
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF8B85FF)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 8))]),
+      decoration: BoxDecoration(gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryLight], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 8))]),
       child: Row(
         children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text("Tu progreso hoy", style: TextStyle(color: Colors.white70, fontSize: 14)), const SizedBox(height: 8), Row(crossAxisAlignment: CrossAxisAlignment.end, children: [Text("${p.answeredToday}", style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)), Padding(padding: const EdgeInsets.only(bottom: 6, left: 4), child: Text("/ ${p.dailyGoal} preguntas", style: const TextStyle(color: Colors.white70, fontSize: 16)))]), const SizedBox(height: 12), ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: progress > 1 ? 1 : progress, backgroundColor: Colors.white24, valueColor: const AlwaysStoppedAnimation(Colors.white), minHeight: 6))])),

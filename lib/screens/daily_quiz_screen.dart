@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 import '../services/progress_service.dart';
 
 class DailyQuizScreen extends StatefulWidget {
@@ -113,7 +114,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(isCorrect ? '✨ ¡Correcto! Sigue así' : '❌ Incorrecto, repasaremos esto'),
-      backgroundColor: isCorrect ? const Color(0xFF4ECDC4) : const Color(0xFFFF6584),
+      backgroundColor: isCorrect ? AppColors.teal : AppColors.pink,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       margin: const EdgeInsets.all(16),
@@ -165,7 +166,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
+              colors: [AppColors.primary, AppColors.teal],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -183,7 +184,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF6C63FF),
+                    foregroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
@@ -210,7 +211,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
             ),
-            child: Text('${p.answeredToday}/${p.dailyGoal}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6C63FF))),
+            child: Text('${p.answeredToday}/${p.dailyGoal}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
           )
         ],
       ),
@@ -219,7 +220,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
           LinearProgressIndicator(
             value: p.answeredToday / p.dailyGoal,
             backgroundColor: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-            color: const Color(0xFF4ECDC4),
+            color: AppColors.teal,
             minHeight: 6,
           ),
           Expanded(
@@ -274,15 +275,15 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
                     if (_answered) {
                       if (isCorrect) {
-                        bgColor = const Color(0xFF4ECDC4).withValues(alpha: 0.2);
-                        borderColor = const Color(0xFF4ECDC4);
-                        textColor = const Color(0xFF1A535C);
-                        if (Theme.of(context).brightness == Brightness.dark) textColor = const Color(0xFF4ECDC4); // Ajuste para dark mode
+                        bgColor = AppColors.teal.withValues(alpha: 0.2);
+                        borderColor = AppColors.teal;
+                        textColor = AppColors.tealDark;
+                        if (Theme.of(context).brightness == Brightness.dark) textColor = AppColors.teal; // Ajuste para dark mode
                       } else if (isSelected) {
-                        bgColor = const Color(0xFFFF6584).withValues(alpha: 0.2);
-                        borderColor = const Color(0xFFFF6584);
-                        textColor = const Color(0xFFA3001B);
-                        if (Theme.of(context).brightness == Brightness.dark) textColor = const Color(0xFFFF6584); // Ajuste para dark mode
+                        bgColor = AppColors.pink.withValues(alpha: 0.2);
+                        borderColor = AppColors.pink;
+                        textColor = AppColors.darkRed;
+                        if (Theme.of(context).brightness == Brightness.dark) textColor = AppColors.pink; // Ajuste para dark mode
                       } else {
                         bgColor = Theme.of(context).cardColor.withValues(alpha: 0.5); // Deshabilitado visualmente
                         textColor = Colors.grey;
@@ -310,7 +311,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                               Container(
                                 width: 30, height: 30,
                                 decoration: BoxDecoration(
-                                  color: _answered && isCorrect ? const Color(0xFF4ECDC4) : Colors.grey.withValues(alpha: 0.1),
+                                  color: _answered && isCorrect ? AppColors.teal : Colors.grey.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
@@ -327,8 +328,8 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: textColor),
                                 ),
                               ),
-                              if (_answered && isCorrect) const Icon(Icons.check_circle, color: Color(0xFF4ECDC4)),
-                              if (_answered && isSelected && !isCorrect) const Icon(Icons.cancel, color: Color(0xFFFF6584)),
+                              if (_answered && isCorrect) const Icon(Icons.check_circle, color: AppColors.teal),
+                              if (_answered && isSelected && !isCorrect) const Icon(Icons.cancel, color: AppColors.pink),
                             ],
                           ),
                         ),

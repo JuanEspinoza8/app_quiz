@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../models/question.dart';
+import '../theme/app_colors.dart';
 
 class AddQuestionScreen extends StatefulWidget {
   final Question? editQuestion;
@@ -153,12 +154,12 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                   decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _correctIndex == i ? const Color(0xFF4ECDC4) : Colors.transparent, width: 2),
+                      border: Border.all(color: _correctIndex == i ? AppColors.teal : Colors.transparent, width: 2),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)]
                   ),
                   child: RadioListTile<int>(
                     value: i,
-                    activeColor: const Color(0xFF4ECDC4),
+                    activeColor: AppColors.teal,
                     title: TextField(
                         controller: _optionControllers[i],
                         decoration: InputDecoration(hintText: 'Opción ${i+1}', border: InputBorder.none),
@@ -180,7 +181,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
             ElevatedButton(
               onPressed: _save,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
