@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/question_repository.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
+import '../widgets/question_image.dart';
 import 'add_question_screen.dart';
 
 class QuestionsListScreen extends StatefulWidget {
@@ -214,12 +214,11 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
 
   Widget _buildLeadingIcon(Question q) {
     if (q.imagePath != null) {
-      return Container(
-        width: 50, height: 50,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          image: DecorationImage(image: FileImage(File(q.imagePath!)), fit: BoxFit.cover),
-        ),
+      return QuestionImage(
+        imageRef: q.imagePath,
+        width: 50,
+        height: 50,
+        borderRadius: BorderRadius.circular(12),
       );
     }
     return Container(

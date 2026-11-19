@@ -28,13 +28,17 @@ class QuestionAdapter extends TypeAdapter<Question> {
       errorCount: fields[8] == null ? 0 : fields[8] as int,
       totalAttempts: fields[9] == null ? 0 : fields[9] as int,
       correctCount: fields[10] == null ? 0 : fields[10] as int,
+      type: fields[11] == null ? 'multiple_choice' : fields[11] as String,
+      matchLeft: fields[12] == null ? [] : (fields[12] as List).cast<String>(),
+      matchImages:
+          fields[13] == null ? [] : (fields[13] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Question obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +60,13 @@ class QuestionAdapter extends TypeAdapter<Question> {
       ..writeByte(9)
       ..write(obj.totalAttempts)
       ..writeByte(10)
-      ..write(obj.correctCount);
+      ..write(obj.correctCount)
+      ..writeByte(11)
+      ..write(obj.type)
+      ..writeByte(12)
+      ..write(obj.matchLeft)
+      ..writeByte(13)
+      ..write(obj.matchImages);
   }
 
   @override

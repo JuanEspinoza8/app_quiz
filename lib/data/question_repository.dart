@@ -24,6 +24,20 @@ class QuestionRepository extends ChangeNotifier {
 
   bool containsId(String id) => _box.values.any((q) => q.id == id);
 
+  /// Si ya hay una materia que solo difiere en mayúsculas o espacios, devuelve
+  /// esa (así "historia" no queda separada de "Historia").
+  String canonicalCategory(String category) {
+    final trimmed = category.trim();
+    final key = trimmed.toLowerCase();
+    for (final existing in categories) {
+      if (existing.trim().toLowerCase() == key) return existing;
+    }
+    return trimmed;
+  }
+
+  /// Todas las imágenes que usan las preguntas guardadas.
+  Set<String> get usedImageRefs => {for (final q in _box.values) ...q.imageRefs};
+
   Future<void> add(Question question) => _box.add(question);
 
   Future<void> addAll(Iterable<Question> questions) => _box.addAll(questions);

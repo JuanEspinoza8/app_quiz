@@ -9,12 +9,64 @@ import 'package:quiz_daily/data/question_repository.dart';
 import 'package:quiz_daily/models/daily_stats.dart';
 import 'package:quiz_daily/models/question.dart';
 import 'package:quiz_daily/models/user_progress.dart';
+import 'package:quiz_daily/services/image_store.dart';
+
+/// PNG de 1x1 transparente, para imágenes de prueba.
+final kTestPng = Uint8List.fromList(const [
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, //
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, //
+  0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x60, 0x60, 0x60, 0x60, //
+  0x00, 0x00, 0x00, 0x05, 0x00, 0x01, 0xA5, 0xF6, 0x45, 0x40, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, //
+  0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+]);
+
+/// ImageStore en memoria: los tests de widgets no tocan el disco.
+class FakeImageStore implements ImageStore {
+  final Map<String, Uint8List> files = {};
+  var _counter = 0;
+
+  /// Agrega una imagen con la referencia [ref] (para armar preguntas de prueba).
+  String add(String ref) {
+    files[ref] = kTestPng;
+    return ref;
+  }
+
+  @override
+  Future<String> saveFromPath(String sourcePath) async => add('img_${_counter++}.png');
+
+  @override
+  Future<String> saveBytes(Uint8List bytes, {String extension = 'jpg'}) async {
+    final ref = 'img_${_counter++}.$extension';
+    files[ref] = bytes;
+    return ref;
+  }
+
+  @override
+  Future<Uint8List?> readBytes(String ref) async => files[ref];
+
+  @override
+  bool exists(String ref) => files.containsKey(ref);
+
+  @override
+  ImageProvider? providerFor(String ref, {int? cacheWidth}) {
+    final bytes = files[ref];
+    return bytes == null ? null : MemoryImage(bytes);
+  }
+
+  @override
+  Future<int> deleteUnreferenced(Set<String> usedRefs) async {
+    final unused = files.keys.where((k) => !usedRefs.contains(k)).toList();
+    unused.forEach(files.remove);
+    return unused.length;
+  }
+}
 
 /// Repositorios sobre cajas de Hive en memoria. En los tests de widgets el
 /// tiempo es simulado y una escritura real a disco no terminaría nunca.
 class TestRepositories {
   final QuestionRepository questions;
   final ProgressRepository progress;
+  final FakeImageStore images = FakeImageStore();
   TestRepositories(this.questions, this.progress);
 
   /// Envuelve [screen] en un MaterialApp con los repositorios disponibles.
@@ -23,6 +75,7 @@ class TestRepositories {
       providers: [
         ChangeNotifierProvider.value(value: questions),
         ChangeNotifierProvider.value(value: progress),
+        Provider<ImageStore>.value(value: images),
       ],
       child: MaterialApp(home: screen),
     );

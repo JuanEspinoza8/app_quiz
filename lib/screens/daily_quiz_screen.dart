@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +6,7 @@ import '../models/question.dart';
 import '../theme/app_colors.dart';
 import '../data/progress_repository.dart';
 import '../data/question_repository.dart';
+import '../widgets/question_image.dart';
 
 class DailyQuizScreen extends StatefulWidget {
   const DailyQuizScreen({super.key});
@@ -231,12 +231,15 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     ),
                     child: Column(
                       children: [
-                        if (q.imagePath != null)
-                          ClipRRect(
+                        if (q.imagePath != null) ...[
+                          QuestionImage(
+                            imageRef: q.imagePath,
+                            height: 180,
+                            width: double.infinity,
                             borderRadius: BorderRadius.circular(16),
-                            child: Image.file(File(q.imagePath!), height: 180, width: double.infinity, fit: BoxFit.cover),
                           ),
-                        if (q.imagePath != null) const SizedBox(height: 20),
+                          const SizedBox(height: 20),
+                        ],
                         Text(
                           q.questionText,
                           textAlign: TextAlign.center,

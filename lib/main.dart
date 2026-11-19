@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -18,6 +20,7 @@ import 'package:quiz_daily/screens/home_screen.dart';
 import 'package:quiz_daily/screens/settings_screen.dart';
 import 'package:quiz_daily/screens/onboarding_screen.dart';
 import 'package:quiz_daily/screens/storage_error_screen.dart';
+import 'package:quiz_daily/services/image_store.dart';
 import 'package:quiz_daily/services/notification_service.dart';
 import 'package:quiz_daily/services/storage_service.dart';
 import 'package:quiz_daily/theme/app_colors.dart';
@@ -55,9 +58,20 @@ Future<void> _start() async {
     Hive.box<DailyStats>(HiveBoxes.stats),
   );
   await progress.ensureInitialized();
+  final images = await FileImageStore.open();
 
   // Reinicia el progreso diario y la racha si cambió el día desde la última vez.
   progress.rolloverIfNewDay();
+
+  // Borra las imágenes que ya no usa ninguna pregunta: las de preguntas
+  // borradas, las reemplazadas y las elegidas en un editor que se canceló.
+  // No hace falta esperarlo para mostrar la app.
+  unawaited(images
+      .deleteUnreferenced(questions.usedImageRefs)
+      .catchError((Object e) {
+    debugPrint('No se pudieron limpiar las imágenes: $e');
+    return 0;
+  }));
 
   try {
     await NotificationService.init();
@@ -75,6 +89,7 @@ Future<void> _start() async {
     providers: [
       ChangeNotifierProvider.value(value: questions),
       ChangeNotifierProvider.value(value: progress),
+      Provider<ImageStore>.value(value: images),
     ],
     child: const DayRolloverOnResume(child: QuizDailyApp()),
   ));

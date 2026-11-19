@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../data/question_repository.dart';
 import '../models/question.dart';
+import '../services/image_store.dart';
 import '../theme/app_colors.dart';
+import '../widgets/question_image.dart';
 
 class AddQuestionScreen extends StatefulWidget {
   final Question? editQuestion;
@@ -23,7 +24,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
   final _categoryController = TextEditingController();
   final _categoryFocusNode = FocusNode();
   int _correctIndex = 0;
-  File? _selectedImage;
+  String? _imageRef;
   List<String> _existingCategories = [];
 
   @override
@@ -40,7 +41,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       _correctIndex = q.correctAnswerIndex;
       _categoryController.text = q.category;
       _explanationController.text = q.explanation ?? '';
-      if (q.imagePath != null) _selectedImage = File(q.imagePath!);
+      _imageRef = q.imagePath;
     }
   }
 
@@ -56,6 +57,16 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
     super.dispose();
   }
 
+  /// Elige una imagen de la galería y la copia a la carpeta de la app: la
+  /// ruta que devuelve image_picker está en la caché y el sistema la borra.
+  Future<void> _pickQuestionImage() async {
+    final images = context.read<ImageStore>();
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1600, imageQuality: 85);
+    if (picked == null) return;
+    final ref = await images.saveFromPath(picked.path);
+    if (mounted) setState(() => _imageRef = ref);
+  }
+
   void _save() {
     if (_questionController.text.isEmpty || _categoryController.text.isEmpty) return;
     final repo = context.read<QuestionRepository>();
@@ -66,7 +77,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
       correctAnswerIndex: _correctIndex,
       category: _categoryController.text.trim(),
       createdAt: widget.editQuestion?.createdAt ?? DateTime.now(),
-      imagePath: _selectedImage?.path,
+      imagePath: _imageRef,
       explanation: _explanationController.text.trim().isEmpty ? null : _explanationController.text.trim(),
       errorCount: widget.editQuestion?.errorCount ?? 0,
       totalAttempts: widget.editQuestion?.totalAttempts ?? 0,
@@ -120,10 +131,7 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                   ),
                   const SizedBox(width: 16),
                   GestureDetector(
-                    onTap: () async {
-                      final p = await ImagePicker().pickImage(source: ImageSource.gallery);
-                      if (p != null && mounted) setState(() => _selectedImage = File(p.path));
-                    },
+                    onTap: _pickQuestionImage,
                     child: Container(
                       height: 80, width: 80,
                       margin: const EdgeInsets.only(top: 24),
@@ -131,9 +139,10 @@ class _AddQuestionScreenState extends State<AddQuestionScreen> {
                           color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-                          image: _selectedImage != null ? DecorationImage(image: FileImage(_selectedImage!), fit: BoxFit.cover) : null
                       ),
-                      child: _selectedImage == null ? const Icon(Icons.add_a_photo, color: Colors.grey) : null,
+                      child: _imageRef == null
+                          ? const Icon(Icons.add_a_photo, color: Colors.grey)
+                          : QuestionImage(imageRef: _imageRef, width: 80, height: 80, borderRadius: BorderRadius.circular(12)),
                     ),
                   )
                 ],
