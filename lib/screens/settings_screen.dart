@@ -10,6 +10,7 @@ import '../models/user_progress.dart';
 import '../theme/app_colors.dart';
 import '../services/notification_service.dart';
 import '../services/data_sync_service.dart';
+import '../services/image_store.dart';
 import '../services/import_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -46,24 +47,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  ImageStore get _images => context.read<ImageStore>();
+
   Future<void> _backupData() async {
-    final path = await DataSyncService.exportFullBackup(questions: _questions, progress: _progress);
-    await Share.shareXFiles([XFile(path)], text: "Respaldo Quiz Daily 🔒");
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final path = await DataSyncService.exportFullBackup(questions: _questions, progress: _progress, images: _images);
+      await Share.shareXFiles([XFile(path)], text: "Respaldo Quiz Daily 🔒");
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo crear el respaldo: $e')));
+    }
   }
 
   Future<void> _restoreData() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
-    if (result == null) return;
-    if (!mounted) return;
-    final file = File(result.files.single.path!);
+    // FileType.any: muchas apps comparten el .json como "archivo genérico" y
+    // con un filtro por extensión no se podría elegir. El contenido se
+    // revisa al importar.
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+
+    final mode = await _askImportMode();
+    if (mode == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
     String msg;
     try {
-      msg = await ImportService.importBackup(file, questions: _questions, progress: _progress);
+      final imported = await ImportService.importBackup(
+        File(path),
+        questions: _questions,
+        progress: _progress,
+        images: _images,
+        mode: mode,
+      );
+      msg = imported.message;
     } catch (e) {
       msg = 'No se pudo leer el respaldo: $e';
     }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    messenger.showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 6)));
+  }
+
+  Future<ImportMode?> _askImportMode() {
+    return showDialog<ImportMode>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restaurar respaldo'),
+        content: const Text(
+          'Las preguntas del respaldo se agregan a las que ya tenés (las repetidas se saltean).\n\n'
+          '"Todo" además reemplaza tu meta, tu racha, la hora del recordatorio y las estadísticas por las del respaldo.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, ImportMode.all), child: const Text('Todo')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ImportMode.questionsOnly), child: const Text('Solo preguntas')),
+        ],
+      ),
+    );
   }
 
   void _showCategoryFilter(UserProgress p) {
@@ -165,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildCard(context, [
             _buildTile(
               title: "Crear Respaldo",
-              subtitle: "Guarda todo tu progreso",
+              subtitle: "Preguntas, imágenes y progreso en un .zip",
               icon: Icons.cloud_upload_rounded,
               color: AppColors.teal,
               onTap: _backupData,
@@ -173,7 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 1, indent: 60),
             _buildTile(
               title: "Restaurar Copia",
-              subtitle: "Recupera tus datos",
+              subtitle: "Desde un .zip (o el .json de la versión anterior)",
               icon: Icons.cloud_download_rounded,
               color: AppColors.primary,
               onTap: _restoreData,

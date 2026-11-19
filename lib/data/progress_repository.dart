@@ -5,6 +5,9 @@ import 'package:hive/hive.dart';
 import '../models/user_progress.dart';
 import '../models/daily_stats.dart';
 
+/// Meta diaria con la que arranca la app (y la que se usa si falta el dato).
+const kDefaultDailyGoal = 5;
+
 /// Progreso del usuario (meta, racha, preferencias) y el historial diario.
 /// Concentra la lógica de cambio de día y racha, y avisa a la UI cuando
 /// cambia cualquiera de las dos cajas.
@@ -29,7 +32,7 @@ class ProgressRepository extends ChangeNotifier {
   Future<void> ensureInitialized() async {
     if (_progressBox.isNotEmpty) return;
     await _progressBox.add(UserProgress(
-      dailyGoal: 5,
+      dailyGoal: kDefaultDailyGoal,
       answeredToday: 0,
       streak: 0,
       lastPlayedDate: DateTime(2000, 1, 1),
@@ -126,21 +129,27 @@ class ProgressRepository extends ChangeNotifier {
     return p.save();
   }
 
-  /// Aplica los datos de progreso de un respaldo. answeredToday no viaja en
-  /// el respaldo: con la última fecha jugada, rolloverIfNewDay decide si la
+  /// Aplica los datos de progreso de un respaldo. Lo que no viene (o viene
+  /// fuera de rango) queda como estaba. answeredToday no viaja en el
+  /// respaldo: con la última fecha jugada, rolloverIfNewDay decide si la
   /// racha sigue o se corta.
   Future<void> restoreFromBackup({
-    required int dailyGoal,
-    required int streak,
-    required int notificationHour,
-    required int notificationMinute,
+    int? dailyGoal,
+    int? streak,
+    int? notificationHour,
+    int? notificationMinute,
     DateTime? lastPlayed,
   }) {
-    final p = progress
-      ..dailyGoal = dailyGoal
-      ..streak = streak
-      ..notificationHour = notificationHour
-      ..notificationMinute = notificationMinute;
+    final p = progress;
+    // Con meta 0 el quiz quedaría siempre en "Meta diaria cumplida".
+    if (dailyGoal != null) p.dailyGoal = dailyGoal < 1 ? 1 : dailyGoal;
+    if (streak != null && streak >= 0) p.streak = streak;
+    if (notificationHour != null && notificationHour >= 0 && notificationHour <= 23) {
+      p.notificationHour = notificationHour;
+    }
+    if (notificationMinute != null && notificationMinute >= 0 && notificationMinute <= 59) {
+      p.notificationMinute = notificationMinute;
+    }
     if (lastPlayed != null) p.lastPlayedDate = lastPlayed;
     return p.save();
   }
