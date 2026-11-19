@@ -1,3 +1,6 @@
+import 'dart:math';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_daily/models/user_progress.dart';
 import 'package:quiz_daily/screens/daily_quiz_screen.dart';
@@ -8,12 +11,18 @@ void main() {
   final today = DateTime(2026, 10, 30, 10);
   final yesterday = DateTime(2026, 10, 29, 21);
 
-  UserProgress progress({required DateTime lastPlayed, required int answeredToday}) => UserProgress(
-        dailyGoal: 5,
+  UserProgress progress({
+    required DateTime lastPlayed,
+    required int answeredToday,
+    int dailyGoal = 5,
+    List<String> hiddenCategories = const [],
+  }) =>
+      UserProgress(
+        dailyGoal: dailyGoal,
         answeredToday: answeredToday,
         streak: 3,
         lastPlayedDate: lastPlayed,
-        hiddenCategories: [],
+        hiddenCategories: hiddenCategories,
       );
 
   testWidgets('si hoy ya cumplió la meta, muestra "Meta diaria cumplida"', (tester) async {
@@ -63,8 +72,132 @@ void main() {
     expect(find.text('1/5'), findsOneWidget);
     expect(question.totalAttempts, 1);
     expect(question.correctCount, 1);
+    expect(find.text('¡Correcto!'), findsOneWidget);
 
-    // Deja correr la pausa antes de la siguiente pregunta y el SnackBar.
-    await tester.pump(const Duration(seconds: 2));
+    // La corrección queda hasta tocar "Continuar"; después sigue el quiz.
+    await tester.tap(find.text('Continuar'));
+    await tester.pump();
+    expect(find.text('¡Correcto!'), findsNothing);
+    expect(find.text('Continuar'), findsNothing);
+    expect(find.text('Pregunta 1'), findsOneWidget);
+  });
+
+  testWidgets('la última pregunta del día muestra la corrección antes del trofeo', (tester) async {
+    // Bug original: al llegar a la meta saltaba directo al trofeo y no se
+    // veía si la respuesta estaba bien.
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(lastPlayed: today, answeredToday: 0, dailyGoal: 1),
+      questions: [testQuestion('1', correct: 2)],
+      now: () => today,
+    );
+
+    await tester.pumpWidget(repos.wrap(const DailyQuizScreen()));
+    await tester.tap(find.text('Opción A 1')); // incorrecta
+    await tester.pump();
+
+    expect(find.text('¡Meta diaria cumplida!'), findsNothing);
+    expect(find.text('Pregunta 1'), findsOneWidget);
+    expect(find.text('Incorrecto'), findsOneWidget);
+    // La elegida en rojo y la correcta en verde.
+    expect(find.byIcon(Icons.cancel), findsNWidgets(2));
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+
+    await tester.tap(find.text('Continuar'));
+    await tester.pump();
+
+    expect(find.text('¡Meta diaria cumplida!'), findsOneWidget);
+  });
+
+  testWidgets('la explicación se muestra debajo de la pregunta al responder', (tester) async {
+    final question = testQuestion('1')..explanation = 'Porque lo dice el libro.';
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(lastPlayed: today, answeredToday: 0),
+      questions: [question],
+      now: () => today,
+    );
+
+    await tester.pumpWidget(repos.wrap(const DailyQuizScreen()));
+    expect(find.text('Porque lo dice el libro.'), findsNothing);
+
+    await tester.tap(find.text('Opción B 1'));
+    await tester.pump();
+
+    expect(find.text('Porque lo dice el libro.'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('las opciones se muestran mezcladas y se corrige por la opción, no por la posición', (tester) async {
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(lastPlayed: today, answeredToday: 0),
+      questions: [testQuestion('1', correct: 2)],
+      now: () => today,
+    );
+
+    await tester.pumpWidget(repos.wrap(DailyQuizScreen(random: Random(7))));
+
+    // El mismo azar que usa la pantalla: un número para elegir la pregunta y
+    // después la mezcla de las cuatro opciones.
+    final random = Random(7)..nextInt(1);
+    final expectedOrder = [0, 1, 2, 3]..shuffle(random);
+    expect(expectedOrder, isNot([0, 1, 2, 3]));
+
+    const labels = ['Opción A 1', 'Opción B 1', 'Opción C 1', 'Opción D 1'];
+    final byPosition = [...labels]..sort((a, b) => tester.getTopLeft(find.text(a)).dy.compareTo(tester.getTopLeft(find.text(b)).dy));
+    expect(byPosition, [for (final i in expectedOrder) labels[i]]);
+
+    await tester.tap(find.text('Opción C 1'));
+    await tester.pump();
+    expect(find.text('¡Correcto!'), findsOneWidget);
+  });
+
+  testWidgets('con más de una pregunta, nunca sale la misma dos veces seguidas', (tester) async {
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(lastPlayed: today, answeredToday: 0, dailyGoal: 20),
+      questions: [testQuestion('1'), testQuestion('2')],
+      now: () => today,
+    );
+
+    await tester.pumpWidget(repos.wrap(DailyQuizScreen(random: Random(3))));
+
+    String shown() => find.text('Pregunta 1').evaluate().isNotEmpty ? '1' : '2';
+    var previous = shown();
+    for (var i = 0; i < 8; i++) {
+      await tester.tap(find.textContaining('Opción A').first);
+      await tester.pump();
+      await tester.tap(find.text('Continuar'));
+      await tester.pump();
+      final current = shown();
+      expect(current, isNot(previous));
+      previous = current;
+    }
+  });
+
+  testWidgets('sin preguntas habilitadas avisa y deja volver', (tester) async {
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(lastPlayed: today, answeredToday: 0, hiddenCategories: ['Historia']),
+      questions: [testQuestion('1', category: 'Historia')],
+      now: () => today,
+    );
+
+    await tester.pumpWidget(repos.wrap(Builder(
+      builder: (context) => TextButton(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DailyQuizScreen())),
+        child: const Text('abrir'),
+      ),
+    )));
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No hay preguntas habilitadas'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('abrir'), findsOneWidget);
   });
 }
