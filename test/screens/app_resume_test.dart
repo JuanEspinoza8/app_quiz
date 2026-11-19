@@ -14,28 +14,58 @@ class _ProgressText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<ProgressRepository>().progress;
-    return Text('${p.answeredToday}/${p.dailyGoal}');
+    return Text('${p.answeredToday}/${p.dailyGoal} racha ${p.streak}');
   }
 }
 
 void main() {
-  testWidgets('al volver a la app otro día, el progreso diario se reinicia', (tester) async {
+  Future<void> resume(WidgetTester tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+  }
+
+  testWidgets('al volver a la app otro día, el progreso diario se reinicia y la racha sigue', (tester) async {
     var now = DateTime(2026, 10, 29, 22);
     final repos = await createTestRepositories(
       tester,
-      progress: UserProgress(dailyGoal: 5, answeredToday: 5, streak: 2, lastPlayedDate: now),
+      progress: UserProgress(
+        dailyGoal: 5,
+        answeredToday: 5,
+        streak: 2,
+        lastPlayedDate: now,
+        lastGoalMetDate: DateTime(2026, 10, 29),
+      ),
       now: () => now,
     );
 
     await tester.pumpWidget(repos.wrap(const DayRolloverOnResume(child: _ProgressText())));
-    expect(find.text('5/5'), findsOneWidget);
+    expect(find.text('5/5 racha 2'), findsOneWidget);
 
     now = DateTime(2026, 10, 30, 8);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump();
+    await resume(tester);
 
-    expect(find.text('0/5'), findsOneWidget);
-    expect(repos.progress.progress.streak, 3);
+    expect(find.text('0/5 racha 2'), findsOneWidget);
+  });
+
+  testWidgets('si se saltea un día, al volver la racha queda en 0', (tester) async {
+    var now = DateTime(2026, 10, 29, 22);
+    final repos = await createTestRepositories(
+      tester,
+      progress: UserProgress(
+        dailyGoal: 5,
+        answeredToday: 5,
+        streak: 2,
+        lastPlayedDate: now,
+        lastGoalMetDate: DateTime(2026, 10, 29),
+      ),
+      now: () => now,
+    );
+
+    await tester.pumpWidget(repos.wrap(const DayRolloverOnResume(child: _ProgressText())));
+    now = DateTime(2026, 10, 31, 8);
+    await resume(tester);
+
+    expect(find.text('0/5 racha 0'), findsOneWidget);
   });
 }

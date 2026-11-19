@@ -29,13 +29,15 @@ class UserProgressAdapter extends TypeAdapter<UserProgress> {
       userName: fields[9] == null ? '' : fields[9] as String,
       hiddenCategories:
           fields[10] == null ? [] : (fields[10] as List).cast<String>(),
+      lastGoalMetDate: fields[11] as DateTime?,
+      bestStreak: fields[12] == null ? 0 : fields[12] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProgress obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.dailyGoal)
       ..writeByte(1)
@@ -57,7 +59,11 @@ class UserProgressAdapter extends TypeAdapter<UserProgress> {
       ..writeByte(9)
       ..write(obj.userName)
       ..writeByte(10)
-      ..write(obj.hiddenCategories);
+      ..write(obj.hiddenCategories)
+      ..writeByte(11)
+      ..write(obj.lastGoalMetDate)
+      ..writeByte(12)
+      ..write(obj.bestStreak);
   }
 
   @override

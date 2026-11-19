@@ -17,13 +17,16 @@ void main() {
     required int answeredToday,
     int dailyGoal = 5,
     List<String> hiddenCategories = const [],
+    String? examCategory,
   }) =>
       UserProgress(
         dailyGoal: dailyGoal,
         answeredToday: answeredToday,
         streak: 3,
         lastPlayedDate: lastPlayed,
+        lastGoalMetDate: DateTime(lastPlayed.year, lastPlayed.month, lastPlayed.day),
         hiddenCategories: hiddenCategories,
+        targetCategory: examCategory,
       );
 
   testWidgets('si hoy ya cumplió la meta, muestra "Meta diaria cumplida"', (tester) async {
@@ -54,7 +57,28 @@ void main() {
     expect(find.text('¡Meta diaria cumplida!'), findsNothing);
     expect(find.text('Pregunta 1'), findsOneWidget);
     expect(find.text('0/5'), findsOneWidget);
-    expect(repos.progress.progress.streak, 4);
+    // Ayer se cumplió la meta: la racha sigue, y suma cuando se cumpla la de hoy.
+    expect(repos.progress.progress.streak, 3);
+  });
+
+  testWidgets('en modo examen solo salen preguntas de esa materia', (tester) async {
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(lastPlayed: today, answeredToday: 0, dailyGoal: 20, examCategory: 'Física'),
+      questions: [testQuestion('h1', category: 'Historia'), testQuestion('f1', category: 'Física'), testQuestion('f2', category: 'Física')],
+      now: () => today,
+    );
+
+    await tester.pumpWidget(repos.wrap(DailyQuizScreen(random: Random(1))));
+    expect(find.text('📚 Modo Examen: Física'), findsOneWidget);
+
+    for (var i = 0; i < 6; i++) {
+      expect(find.text('Pregunta h1'), findsNothing);
+      await tester.tap(find.textContaining('Opción A').first);
+      await tester.pump();
+      await tester.tap(find.text('Continuar'));
+      await tester.pump();
+    }
   });
 
   testWidgets('responder suma al progreso del día y a las estadísticas de la pregunta', (tester) async {

@@ -76,15 +76,13 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       candidates = candidates.where((q) => !progress.hiddenCategories.contains(q.category)).toList();
     }
 
-    // Lógica de Modo Examen
-    if (progress.targetCategory != null && progress.targetDate != null) {
-      final now = DateTime.now();
-      if (progress.targetDate!.isAfter(now.subtract(const Duration(days: 1)))) {
-        final filtered = candidates.where((q) => q.category == progress.targetCategory).toList();
-        if (filtered.isNotEmpty) {
-          candidates = filtered;
-          modeMessage = "📚 Modo Examen: ${progress.targetCategory}";
-        }
+    // Modo examen: mientras esté activo, solo preguntas de esa materia.
+    final examCategory = _progress.activeExamCategory;
+    if (examCategory != null) {
+      final filtered = candidates.where((q) => q.category == examCategory).toList();
+      if (filtered.isNotEmpty) {
+        candidates = filtered;
+        modeMessage = "📚 Modo Examen: $examCategory";
       }
     }
 

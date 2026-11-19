@@ -13,7 +13,7 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _nameController = TextEditingController();
-  int _dailyGoal = 5;
+  int _dailyGoal = kDefaultDailyGoal;
 
   @override
   void dispose() {

@@ -8,6 +8,9 @@ import '../models/daily_stats.dart';
 /// Meta diaria con la que arranca la app (y la que se usa si falta el dato).
 const kDefaultDailyGoal = 5;
 
+/// Meta diaria máxima que se puede configurar.
+const kMaxDailyGoal = 50;
+
 /// Progreso del usuario (meta, racha, preferencias) y el historial diario.
 /// Concentra la lógica de cambio de día y racha, y avisa a la UI cuando
 /// cambia cualquiera de las dos cajas.
@@ -28,9 +31,13 @@ class ProgressRepository extends ChangeNotifier {
 
   UserProgress get progress => _progressBox.getAt(0)!;
 
-  /// Crea el progreso inicial si la caja está vacía (primera ejecución).
+  /// Crea el progreso inicial si la caja está vacía (primera ejecución) y
+  /// adapta los datos guardados por versiones anteriores.
   Future<void> ensureInitialized() async {
-    if (_progressBox.isNotEmpty) return;
+    if (_progressBox.isNotEmpty) {
+      await _migrateLegacyStreak();
+      return;
+    }
     await _progressBox.add(UserProgress(
       dailyGoal: kDefaultDailyGoal,
       answeredToday: 0,
@@ -44,25 +51,37 @@ class ProgressRepository extends ChangeNotifier {
     ));
   }
 
+  /// Las versiones anteriores no guardaban el día en que se cumplió la meta y
+  /// contaban el día de hoy por adelantado: una racha de N sin la meta de hoy
+  /// cumplida eran N - 1 días cumplidos hasta ayer.
+  Future<void> _migrateLegacyStreak() async {
+    final p = progress;
+    if (p.lastGoalMetDate != null || p.streak == 0) return;
+    final day = DateTime(p.lastPlayedDate.year, p.lastPlayedDate.month, p.lastPlayedDate.day);
+    if (p.answeredToday >= p.dailyGoal) {
+      p.lastGoalMetDate = day;
+    } else {
+      p.streak -= 1;
+      p.lastGoalMetDate = p.streak > 0 ? DateTime(day.year, day.month, day.day - 1) : null;
+    }
+    if (p.streak > p.bestStreak) p.bestStreak = p.streak;
+    await p.save();
+  }
+
   // ---------------------------------------------------------------------------
   // Día, racha y respuestas
   // ---------------------------------------------------------------------------
 
-  /// Si cambió el día desde la última vez, actualiza la racha y reinicia el
-  /// contador diario. Se llama al iniciar la app, al volver a ella, al abrir
-  /// el quiz y antes de sumar una respuesta. Devuelve true si hubo cambio de día.
+  /// Si cambió el día desde la última vez, reinicia el contador diario y
+  /// corta la racha si ayer no se cumplió la meta. Se llama al iniciar la
+  /// app, al volver a ella, al abrir el quiz y antes de sumar una respuesta.
+  /// Devuelve true si hubo cambio de día.
   bool rolloverIfNewDay() {
     final today = _now();
     final p = progress;
     if (_isSameDay(today, p.lastPlayedDate)) return false;
 
-    // La racha sigue solo si el último día jugado fue ayer y se cumplió la meta.
-    if (_isYesterday(p.lastPlayedDate, today) && p.answeredToday >= p.dailyGoal) {
-      p.streak += 1;
-    } else {
-      p.streak = 0;
-    }
-
+    if (!_streakIsAlive(p, today)) p.streak = 0;
     p.answeredToday = 0;
     p.lastPlayedDate = today;
     p.save();
@@ -75,16 +94,46 @@ class ProgressRepository extends ChangeNotifier {
     rolloverIfNewDay();
     final p = progress;
 
-    // Primera respuesta del día con la racha cortada: empieza una nueva.
-    if (p.streak == 0 && p.answeredToday == 0) {
-      p.streak = 1;
-    }
-
     p.answeredToday += 1;
+    _countGoalIfMet(p, today);
     p.save();
 
     _updateDailyStats(today, isCorrect);
   }
+
+  /// La racha sigue viva si la última meta cumplida fue hoy o ayer.
+  bool _streakIsAlive(UserProgress p, DateTime today) {
+    final met = p.lastGoalMetDate;
+    return met != null && (_isSameDay(met, today) || _isYesterday(met, today));
+  }
+
+  /// La primera vez en el día que se llega a la meta, la racha suma un día
+  /// (o arranca en 1 si venía cortada).
+  void _countGoalIfMet(UserProgress p, DateTime today) {
+    if (p.answeredToday < p.dailyGoal) return;
+    final met = p.lastGoalMetDate;
+    if (met != null && _isSameDay(met, today)) return;
+
+    p.streak = met != null && _isYesterday(met, today) ? p.streak + 1 : 1;
+    p.lastGoalMetDate = DateTime(today.year, today.month, today.day);
+    if (p.streak > p.bestStreak) p.bestStreak = p.streak;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Modo examen
+  // ---------------------------------------------------------------------------
+
+  /// Si la fecha del modo examen ya pasó.
+  bool get isExamExpired {
+    final date = progress.targetDate;
+    if (date == null) return false;
+    final today = _now();
+    return DateTime(date.year, date.month, date.day).isBefore(DateTime(today.year, today.month, today.day));
+  }
+
+  /// La materia del modo examen si está activo: hay una elegida y, si tiene
+  /// fecha, todavía no pasó (el mismo día del examen sigue activo).
+  String? get activeExamCategory => isExamExpired ? null : progress.targetCategory;
 
   // ---------------------------------------------------------------------------
   // Preferencias
@@ -97,14 +146,18 @@ class ProgressRepository extends ChangeNotifier {
     return progress.save();
   }
 
-  /// Guarda la meta diaria (mínimo 1: con 0 el quiz quedaría siempre en
-  /// "Meta diaria cumplida") y el modo examen.
+  /// Guarda la meta diaria (entre 1 y [kMaxDailyGoal]: con 0 el quiz quedaría
+  /// siempre en "Meta diaria cumplida") y el modo examen. Si la meta nueva ya
+  /// está cumplida con lo respondido hoy, el día cuenta para la racha.
   Future<void> updateGoals({required int dailyGoal, String? targetCategory, DateTime? targetDate}) {
-    progress
-      ..dailyGoal = dailyGoal < 1 ? 1 : dailyGoal
+    final today = _now();
+    rolloverIfNewDay();
+    final p = progress
+      ..dailyGoal = dailyGoal.clamp(1, kMaxDailyGoal)
       ..targetCategory = targetCategory
       ..targetDate = targetDate;
-    return progress.save();
+    _countGoalIfMet(p, today);
+    return p.save();
   }
 
   Future<void> setDarkMode(bool enabled) {
@@ -136,14 +189,15 @@ class ProgressRepository extends ChangeNotifier {
   Future<void> restoreFromBackup({
     int? dailyGoal,
     int? streak,
+    int? bestStreak,
     int? notificationHour,
     int? notificationMinute,
     DateTime? lastPlayed,
+    DateTime? lastGoalMet,
   }) {
     final p = progress;
     // Con meta 0 el quiz quedaría siempre en "Meta diaria cumplida".
-    if (dailyGoal != null) p.dailyGoal = dailyGoal < 1 ? 1 : dailyGoal;
-    if (streak != null && streak >= 0) p.streak = streak;
+    if (dailyGoal != null) p.dailyGoal = dailyGoal.clamp(1, kMaxDailyGoal);
     if (notificationHour != null && notificationHour >= 0 && notificationHour <= 23) {
       p.notificationHour = notificationHour;
     }
@@ -151,6 +205,14 @@ class ProgressRepository extends ChangeNotifier {
       p.notificationMinute = notificationMinute;
     }
     if (lastPlayed != null) p.lastPlayedDate = lastPlayed;
+    if (streak != null && streak >= 0) {
+      p.streak = streak;
+      // Los respaldos viejos no traen el día de la última meta cumplida: se
+      // toma el último día jugado.
+      p.lastGoalMetDate = streak == 0 ? null : (lastGoalMet ?? lastPlayed ?? p.lastGoalMetDate);
+    }
+    final best = [p.bestStreak, p.streak, if (bestStreak != null) bestStreak].reduce((a, b) => a > b ? a : b);
+    p.bestStreak = best;
     return p.save();
   }
 

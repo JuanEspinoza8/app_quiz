@@ -148,9 +148,11 @@ class ImportService {
         await progress.restoreFromBackup(
           dailyGoal: _asInt(progressMap['dailyGoal']),
           streak: _asInt(progressMap['streak']),
+          bestStreak: _asInt(progressMap['bestStreak']),
           notificationHour: _asInt(progressMap['notifHour']),
           notificationMinute: _asInt(progressMap['notifMinute']),
           lastPlayed: _asDate(progressMap['lastPlayed']),
+          lastGoalMet: _asDate(progressMap['lastGoalMet']),
         );
         progressRestored = true;
       }

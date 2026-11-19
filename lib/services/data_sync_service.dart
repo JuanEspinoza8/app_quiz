@@ -73,6 +73,8 @@ class DataSyncService {
       'progress': {
         'dailyGoal': p.dailyGoal,
         'streak': p.streak,
+        'bestStreak': p.bestStreak,
+        'lastGoalMet': p.lastGoalMetDate?.toIso8601String(),
         'lastPlayed': p.lastPlayedDate.toIso8601String(),
         'notifHour': p.notificationHour,
         'notifMinute': p.notificationMinute,

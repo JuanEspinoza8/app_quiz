@@ -1,6 +1,7 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../data/progress_repository.dart';
@@ -80,7 +81,15 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildSummaryRow(BuildContext context, UserProgress progress, int totalAnswered, double accuracy) {
     return Row(
       children: [
-        Expanded(child: _statCard(context, "Racha", "${progress.streak} días", Icons.local_fire_department, Colors.orange)),
+        Expanded(
+          child: _statCard(
+            context,
+            "Racha (mejor: ${progress.bestStreak})",
+            "${progress.streak} ${progress.streak == 1 ? 'día' : 'días'}",
+            Icons.local_fire_department,
+            Colors.orange,
+          ),
+        ),
         const SizedBox(width: 12),
         Expanded(child: _statCard(context, "Total", "$totalAnswered", Icons.check_circle_outline, AppColors.primary)),
         const SizedBox(width: 12),
@@ -102,7 +111,7 @@ class ProfileScreen extends StatelessWidget {
           Icon(icon, color: color, size: 28),
           const SizedBox(height: 8),
           Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         ],
       ),
     );
@@ -112,17 +121,24 @@ class ProfileScreen extends StatelessWidget {
     final now = DateTime.now();
     final List<DailyStats?> weekData = [];
     final List<String> weekDays = [];
+    // Inicial de cada día; miércoles es "X" para no repetir la "M" de martes.
+    const initials = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
     for (int i = 6; i >= 0; i--) {
       final date = DateTime(now.year, now.month, now.day - i);
       weekData.add(progress.statsFor(date));
-      weekDays.add(DateFormat.E('es').format(date).substring(0, 1).toUpperCase());
+      weekDays.add(initials[date.weekday - 1]);
     }
+
+    // La escala se adapta al día con más respuestas (o a la meta), para que
+    // ninguna barra se salga del gráfico.
+    final busiestDay = weekData.fold<int>(0, (m, s) => max(m, s?.questionsAnswered ?? 0));
+    final maxY = (max(busiestDay, progress.progress.dailyGoal) * 1.15).ceilToDouble();
 
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: 20,
+        maxY: maxY,
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(getTooltipColor: (_) => AppColors.primary),
         ),
@@ -220,13 +236,15 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildAchievementsGrid(BuildContext context, UserProgress p, int totalAnswered, double accuracy, int totalQuestions) {
+    // Los logros de racha usan la mejor racha: no se pierden si se corta.
+    final bestStreak = max(p.bestStreak, p.streak);
     final achievements = [
       {"icon": Icons.school, "title": "Novato", "desc": "10 respuestas", "unlocked": totalAnswered >= 10},
-      {"icon": Icons.local_fire_department, "title": "En llamas", "desc": "Racha de 3", "unlocked": p.streak >= 3},
+      {"icon": Icons.local_fire_department, "title": "En llamas", "desc": "Racha de 3", "unlocked": bestStreak >= 3},
       {"icon": Icons.emoji_events, "title": "Experto", "desc": "100 respuestas", "unlocked": totalAnswered >= 100},
       {"icon": Icons.psychology, "title": "Cerebrito", "desc": "80% precisión", "unlocked": totalAnswered >= 20 && accuracy >= 0.8},
       {"icon": Icons.edit_note, "title": "Creador", "desc": "5 preguntas", "unlocked": totalQuestions >= 5},
-      {"icon": Icons.diamond, "title": "Leyenda", "desc": "Racha de 30", "unlocked": p.streak >= 30},
+      {"icon": Icons.diamond, "title": "Leyenda", "desc": "Racha de 30", "unlocked": bestStreak >= 30},
     ];
 
     return GridView.builder(
@@ -242,7 +260,10 @@ class ProfileScreen extends StatelessWidget {
         return Tooltip(
           message: "${item['desc']}",
           triggerMode: TooltipTriggerMode.tap,
-          child: Container(
+          child: Semantics(
+            label: "${item['title']}: ${isUnlocked ? 'desbloqueado' : 'bloqueado'}",
+            excludeSemantics: true,
+            child: Container(
             decoration: BoxDecoration(
               color: isUnlocked ? AppColors.amber : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
@@ -262,6 +283,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
           ),
         );
       },
