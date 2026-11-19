@@ -32,7 +32,7 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
     final selectedCategory = categories.contains(_selectedCategory) ? _selectedCategory : 'Todas';
     final search = _searchController.text.toLowerCase();
     final filteredQuestions = repo.all.where((q) {
-      final matchText = q.questionText.toLowerCase().contains(search);
+      final matchText = search.isEmpty || _searchableText(q).contains(search);
       final matchCategory = selectedCategory == 'Todas' || q.category == selectedCategory;
       final matchHard = !_showOnlyHard || q.errorCount > 0;
       return matchText && matchCategory && matchHard;
@@ -157,6 +157,24 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
                                   ),
                                   child: Text(question.category, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
                                 ),
+                                if (question.isMatching) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.link, size: 12, color: AppColors.primary),
+                                        SizedBox(width: 2),
+                                        Text('Relacionar', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 if (question.errorCount > 0) ...[
                                   const SizedBox(width: 8),
                                   Icon(Icons.warning_amber_rounded, size: 14, color: Colors.red.shade300),
@@ -212,10 +230,16 @@ class _QuestionsListScreenState extends State<QuestionsListScreen> {
     );
   }
 
+  /// Texto en el que busca el buscador: enunciado, materia, opciones y los
+  /// elementos de las preguntas de relacionar.
+  static String _searchableText(Question q) =>
+      [q.questionText, q.category, ...q.options, ...q.matchLeft].join('\n').toLowerCase();
+
   Widget _buildLeadingIcon(Question q) {
-    if (q.imagePath != null) {
+    final thumbnail = q.imagePath ?? (q.matchImages.isNotEmpty ? q.matchImages.first : null);
+    if (thumbnail != null) {
       return QuestionImage(
-        imageRef: q.imagePath,
+        imageRef: thumbnail,
         width: 50,
         height: 50,
         borderRadius: BorderRadius.circular(12),

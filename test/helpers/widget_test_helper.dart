@@ -120,3 +120,33 @@ Question testQuestion(String id, {String category = 'Historia', int correct = 0}
       category: category,
       createdAt: DateTime(2026, 1, 1),
     );
+
+/// Pregunta de relacionar: matchImages[i] es la imagen de [left][i].
+Question testMatchingQuestion(String id, {List<String> left = const ['1', '2', '3'], String category = 'Números'}) => Question(
+      id: id,
+      type: QuestionType.matching,
+      questionText: 'Relacionar $id',
+      options: const [],
+      correctAnswerIndex: 0,
+      category: category,
+      createdAt: DateTime(2026, 1, 1),
+      matchLeft: left,
+      matchImages: [for (var i = 0; i < left.length; i++) 'img_${id}_$i.png'],
+    );
+
+/// Muestra [screen] encima de una pantalla de inicio, como en la app: así
+/// tiene botón para volver y puede cerrarse con Navigator.pop.
+Future<void> pushScreen(WidgetTester tester, TestRepositories repos, Widget screen) async {
+  await tester.pumpWidget(repos.wrap(Builder(
+    builder: (context) => Scaffold(
+      body: Center(
+        child: TextButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => screen)),
+          child: const Text('abrir'),
+        ),
+      ),
+    ),
+  )));
+  await tester.tap(find.text('abrir'));
+  await tester.pumpAndSettle();
+}

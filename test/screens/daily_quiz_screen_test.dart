@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quiz_daily/models/user_progress.dart';
 import 'package:quiz_daily/screens/daily_quiz_screen.dart';
+import 'package:quiz_daily/widgets/matching_board.dart';
 
 import '../helpers/widget_test_helper.dart';
 
@@ -174,6 +175,89 @@ void main() {
       expect(current, isNot(previous));
       previous = current;
     }
+  });
+
+  group('pregunta de relacionar', () {
+    /// Une el elemento [left] con la imagen [image] tocando uno y después la otra.
+    Future<void> connect(WidgetTester tester, int left, int image) async {
+      final order = tester.widget<MatchingBoard>(find.byType(MatchingBoard)).order;
+      for (final key in ['matching-left-$left', 'matching-slot-${order.indexOf(image)}']) {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pump();
+      }
+    }
+
+    testWidgets('todas las parejas bien cuenta como acierto', (tester) async {
+      final question = testMatchingQuestion('m1');
+      final repos = await createTestRepositories(
+        tester,
+        progress: progress(lastPlayed: today, answeredToday: 0),
+        questions: [question],
+        now: () => today,
+      );
+
+      await tester.pumpWidget(repos.wrap(DailyQuizScreen(random: Random(5))));
+      expect(find.text('Relacionar m1'), findsOneWidget);
+      expect(find.byType(MatchingBoard), findsOneWidget);
+
+      for (var i = 0; i < 3; i++) {
+        await connect(tester, i, i);
+      }
+      await tester.ensureVisible(find.text('Confirmar'));
+      await tester.tap(find.text('Confirmar'));
+      await tester.pump();
+
+      expect(find.text('¡Correcto!'), findsOneWidget);
+      expect(find.text('3 de 3 correctas'), findsOneWidget);
+      expect(question.correctCount, 1);
+      expect(question.errorCount, 0);
+      expect(find.text('1/5'), findsOneWidget);
+      expect(repos.progress.dailyStats.single.correctAnswers, 1);
+    });
+
+    testWidgets('una pareja mal cuenta como error y marca cuál', (tester) async {
+      final question = testMatchingQuestion('m1');
+      final repos = await createTestRepositories(
+        tester,
+        progress: progress(lastPlayed: today, answeredToday: 0, dailyGoal: 1),
+        questions: [question],
+        now: () => today,
+      );
+
+      await tester.pumpWidget(repos.wrap(DailyQuizScreen(random: Random(5))));
+      await connect(tester, 0, 1);
+      await connect(tester, 1, 0);
+      await connect(tester, 2, 2);
+      await tester.ensureVisible(find.text('Confirmar'));
+      await tester.tap(find.text('Confirmar'));
+      await tester.pump();
+
+      // Es la última del día: igual se ve la corrección antes del trofeo.
+      expect(find.text('Incorrecto'), findsOneWidget);
+      expect(find.text('1 de 3 correctas'), findsOneWidget);
+      expect(question.errorCount, 1);
+      expect(question.correctCount, 0);
+
+      await tester.tap(find.text('Continuar'));
+      await tester.pump();
+      expect(find.text('¡Meta diaria cumplida!'), findsOneWidget);
+    });
+
+    testWidgets('las imágenes nunca salen en el mismo orden que los elementos', (tester) async {
+      for (var seed = 0; seed < 10; seed++) {
+        final repos = await createTestRepositories(
+          tester,
+          progress: progress(lastPlayed: today, answeredToday: 0),
+          questions: [testMatchingQuestion('m$seed')],
+          now: () => today,
+        );
+        await tester.pumpWidget(repos.wrap(DailyQuizScreen(random: Random(seed))));
+
+        expect(tester.widget<MatchingBoard>(find.byType(MatchingBoard)).order, isNot([0, 1, 2]));
+      }
+    });
   });
 
   testWidgets('sin preguntas habilitadas avisa y deja volver', (tester) async {

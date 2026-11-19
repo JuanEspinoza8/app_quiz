@@ -2,10 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../logic/matching.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
 import '../data/progress_repository.dart';
 import '../data/question_repository.dart';
+import '../widgets/matching_board.dart';
 import '../widgets/question_image.dart';
 
 class DailyQuizScreen extends StatefulWidget {
@@ -27,6 +29,13 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
   /// Orden en pantalla de las opciones: _optionOrder[posición] = índice real.
   List<int> _optionOrder = const [];
+
+  /// Relacionar: orden en que se muestran las imágenes.
+  List<int> _matchOrder = const [];
+
+  /// Cuenta las preguntas mostradas; el tablero de relacionar se crea de
+  /// nuevo con cada una aunque la pregunta se repita más adelante.
+  int _round = 0;
 
   /// Opción elegida (índice real), para pintarla al corregir.
   int? _selectedOption;
@@ -101,8 +110,11 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     final next = weighted[_random.nextInt(weighted.length)];
     _current = next;
     _modeMessage = modeMessage;
-    // Las opciones se muestran mezcladas para que no se memorice la posición.
+    _round++;
+    // Las opciones y las imágenes se muestran mezcladas para que no se
+    // memorice la posición. La corrección usa los índices de la pregunta.
     _optionOrder = List.generate(next.options.length, (i) => i)..shuffle(_random);
+    _matchOrder = next.isMatching ? shuffledOrder(next.matchLeft.length, _random) : const [];
   }
 
   /// Registra el resultado y deja la pregunta en pantalla con la corrección.
@@ -185,7 +197,16 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                 children: [
                   _QuestionCard(question: q),
                   const SizedBox(height: 24),
-                  ..._buildOptions(q),
+                  if (q.isMatching)
+                    MatchingBoard(
+                      key: ValueKey('matching-$_round'),
+                      leftItems: q.matchLeft,
+                      imageRefs: q.matchImages,
+                      order: _matchOrder,
+                      onConfirmed: (results) => _submit(results.every((correct) => correct)),
+                    )
+                  else
+                    ..._buildOptions(q),
                   if (_reviewing) ...[
                     const SizedBox(height: 8),
                     _Feedback(correct: _lastAnswerCorrect, explanation: q.explanation),
