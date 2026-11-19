@@ -77,12 +77,15 @@ void main() {
     });
   });
 
-  test('sin GEMINI_API_KEY, generateQuestions avisa cómo configurarla', () async {
-    // Los tests corren sin --dart-define, así que la clave está vacía.
+  test('sin GEMINI_API_KEY, generateQuestions avisa que la IA no está disponible', () async {
+    // Los tests corren sin --dart-define, así que la clave está vacía. El
+    // mensaje lo ve quien usa la app: no menciona detalles técnicos.
     expect(GeminiService.isConfigured, isFalse);
     await expectLater(
       GeminiService.generateQuestions('texto', userCategory: 'X'),
-      throwsA(isA<GeminiException>().having((e) => e.message, 'message', contains('GEMINI_API_KEY'))),
+      throwsA(isA<GeminiException>()
+          .having((e) => e.message, 'message', contains('no está disponible'))
+          .having((e) => e.message, 'message', isNot(contains('GEMINI_API_KEY')))),
     );
   });
 }

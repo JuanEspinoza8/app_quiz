@@ -5,12 +5,25 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../data/question_repository.dart';
+import '../logic/question_validator.dart';
 import '../services/gemini_service.dart';
 import '../models/question.dart';
 import '../theme/app_colors.dart';
 
+/// Genera preguntas a partir de un texto o archivo (por defecto, Gemini).
+typedef QuestionGenerator = Future<List<Question>> Function(
+  String promptText, {
+  required String userCategory,
+  List<String>? avoidQuestions,
+  Uint8List? fileBytes,
+  String? mimeType,
+});
+
 class AiGeneratorScreen extends StatefulWidget {
-  const AiGeneratorScreen({super.key});
+  /// Para los tests; por defecto usa GeminiService.
+  final QuestionGenerator generate;
+
+  const AiGeneratorScreen({super.key, this.generate = GeminiService.generateQuestions});
 
   @override
   State<AiGeneratorScreen> createState() => _AiGeneratorScreenState();
@@ -46,9 +59,12 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'], withData: true);
     if (result != null && mounted) {
       final file = result.files.single;
+      // Lectura asíncrona: un PDF grande no congela la pantalla.
+      final bytes = file.bytes ?? (file.path != null ? await File(file.path!).readAsBytes() : null);
+      if (!mounted) return;
       setState(() {
         _attachedFileName = file.name;
-        _attachedFileBytes = file.bytes ?? (file.path != null ? File(file.path!).readAsBytesSync() : null);
+        _attachedFileBytes = bytes;
         _attachedMimeType = switch (file.extension?.toLowerCase()) {
           'pdf' => 'application/pdf',
           'png' => 'image/png',
@@ -73,7 +89,7 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
     final avoidList = append ? _generatedQuestions.map((q) => q.questionText).toList() : <String>[];
 
     try {
-      final newQuestions = await GeminiService.generateQuestions(
+      final newQuestions = await widget.generate(
         _textController.text,
         userCategory: _categoryController.text.trim(),
         avoidQuestions: avoidList,
@@ -91,7 +107,8 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      final message = e is GeminiException ? e.message : 'Error: $e';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -100,15 +117,21 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
   Future<void> _editQuestionLocal(int index) async {
     final edited = await showDialog<Question>(
       context: context,
-      builder: (_) => _EditGeneratedQuestionDialog(question: _generatedQuestions[index]),
+      builder: (_) => EditGeneratedQuestionDialog(question: _generatedQuestions[index]),
     );
     if (edited != null && mounted) {
       setState(() => _generatedQuestions[index] = edited);
     }
   }
 
+  void _discardQuestion(int index) => setState(() => _generatedQuestions.removeAt(index));
+
   Future<void> _saveAll() async {
-    await context.read<QuestionRepository>().addAll(_generatedQuestions);
+    final repo = context.read<QuestionRepository>();
+    // "biología" se guarda como "Biología" si esa materia ya existe.
+    await repo.addAll([
+      for (final q in _generatedQuestions) q.copyWith(category: repo.canonicalCategory(q.category)),
+    ]);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅')));
     Navigator.pop(context);
@@ -244,7 +267,21 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
                           leading: CircleAvatar(backgroundColor: Colors.deepPurple.withValues(alpha: 0.1), child: Text("${i+1}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple))),
                           title: Text(q.questionText, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text("Resp: ${q.options[q.correctAnswerIndex]}", style: TextStyle(color: Colors.grey[600])),
-                          trailing: const Icon(Icons.edit, size: 18, color: Colors.grey),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Editar pregunta ${i + 1}',
+                                icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
+                                onPressed: () => _editQuestionLocal(i),
+                              ),
+                              IconButton(
+                                tooltip: 'Descartar pregunta ${i + 1}',
+                                icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade300),
+                                onPressed: () => _discardQuestion(i),
+                              ),
+                            ],
+                          ),
                           onTap: () => _editQuestionLocal(i),
                         ),
                       );
@@ -273,19 +310,20 @@ class _AiGeneratorScreenState extends State<AiGeneratorScreen> {
 
 /// Diálogo para corregir una pregunta generada antes de guardarla. Es un
 /// widget propio para poder liberar sus controllers en dispose().
-class _EditGeneratedQuestionDialog extends StatefulWidget {
+class EditGeneratedQuestionDialog extends StatefulWidget {
   final Question question;
-  const _EditGeneratedQuestionDialog({required this.question});
+  const EditGeneratedQuestionDialog({super.key, required this.question});
 
   @override
-  State<_EditGeneratedQuestionDialog> createState() => _EditGeneratedQuestionDialogState();
+  State<EditGeneratedQuestionDialog> createState() => _EditGeneratedQuestionDialogState();
 }
 
-class _EditGeneratedQuestionDialogState extends State<_EditGeneratedQuestionDialog> {
+class _EditGeneratedQuestionDialogState extends State<EditGeneratedQuestionDialog> {
   late final TextEditingController _questionCtrl;
   late final TextEditingController _explanationCtrl;
   late final List<TextEditingController> _optionCtrls;
   late int _correctIndex;
+  String? _error;
 
   @override
   void initState() {
@@ -308,20 +346,20 @@ class _EditGeneratedQuestionDialogState extends State<_EditGeneratedQuestionDial
   }
 
   void _save() {
-    final q = widget.question;
     final explanation = _explanationCtrl.text.trim();
-    Navigator.pop(
-      context,
-      Question(
-        id: q.id,
-        questionText: _questionCtrl.text.trim(),
-        options: _optionCtrls.map((c) => c.text.trim()).toList(),
-        correctAnswerIndex: _correctIndex,
-        category: q.category,
-        createdAt: q.createdAt,
-        explanation: explanation.isEmpty ? null : explanation,
-      ),
+    final edited = widget.question.copyWith(
+      questionText: _questionCtrl.text.trim(),
+      options: _optionCtrls.map((c) => c.text.trim()).toList(),
+      correctAnswerIndex: _correctIndex,
+      explanation: () => explanation.isEmpty ? null : explanation,
     );
+    // Misma validación que el editor: no deja guardar opciones vacías.
+    final error = validateQuestion(edited);
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
+    Navigator.pop(context, edited);
   }
 
   @override
@@ -336,8 +374,16 @@ class _EditGeneratedQuestionDialogState extends State<_EditGeneratedQuestionDial
             TextField(controller: _questionCtrl, decoration: const InputDecoration(labelText: "Pregunta")),
             const SizedBox(height: 10),
             for (int i = 0; i < _optionCtrls.length; i++)
-              Row(children: [Radio<int>(value: i), Expanded(child: TextField(controller: _optionCtrls[i]))]),
+              Row(children: [
+                Radio<int>(value: i),
+                Expanded(child: TextField(key: ValueKey('ai-option-$i'), controller: _optionCtrls[i])),
+              ]),
             TextField(controller: _explanationCtrl, decoration: const InputDecoration(labelText: "Explicación")),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+              ),
           ]),
         ),
       ),

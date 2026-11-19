@@ -8,7 +8,6 @@ import '../data/progress_repository.dart';
 import '../data/question_repository.dart';
 import '../models/user_progress.dart';
 import '../theme/app_colors.dart';
-import '../services/notification_service.dart';
 import '../services/data_sync_service.dart';
 import '../services/image_store.dart';
 import '../services/import_service.dart';
@@ -25,23 +24,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   QuestionRepository get _questions => context.read<QuestionRepository>();
 
   Future<void> _pickTime(UserProgress p) async {
+    // Usa el tema de la app: antes se forzaba el claro también en modo oscuro.
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: p.notificationHour, minute: p.notificationMinute),
-      helpText: "ELIGE LA HORA DEL AVISO",
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primary),
-          ),
-          child: child!,
-        );
-      },
+      helpText: "ELEGÍ LA HORA DEL AVISO",
     );
 
     if (picked != null && mounted) {
+      // main.dart reprograma los recordatorios cuando cambia la hora.
       await _progress.setReminderTime(picked.hour, picked.minute);
-      await NotificationService.scheduleDaily(picked.hour, picked.minute);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notificación ajustada a las ${picked.format(context)} 📅')));
     }

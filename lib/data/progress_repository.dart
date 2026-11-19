@@ -101,6 +101,12 @@ class ProgressRepository extends ChangeNotifier {
     _updateDailyStats(today, isCorrect);
   }
 
+  /// Si hoy ya se cumplió la meta.
+  bool get goalMetToday {
+    final met = progress.lastGoalMetDate;
+    return met != null && _isSameDay(met, _now());
+  }
+
   /// La racha sigue viva si la última meta cumplida fue hoy o ayer.
   bool _streakIsAlive(UserProgress p, DateTime today) {
     final met = p.lastGoalMetDate;

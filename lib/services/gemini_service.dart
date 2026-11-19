@@ -61,11 +61,10 @@ class GeminiService {
         String? mimeType,
       }) async {
 
+    // Lo ve quien usa la app: sin detalles técnicos. Cómo compilar con la
+    // clave (GEMINI_API_KEY en env.json) está en el README.
     if (!isConfigured) {
-      throw const GeminiException(
-        'Falta GEMINI_API_KEY. Ejecutá la app con '
-        '--dart-define-from-file=env.json (ver README).',
-      );
+      throw const GeminiException('La generación con IA no está disponible en esta versión de la app.');
     }
 
     final model = GenerativeModel(
