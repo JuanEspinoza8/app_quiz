@@ -42,7 +42,7 @@ Proyecto personal. No está publicado en ninguna tienda.
 | App | Flutter 3.35+ / Dart 3.9 |
 | Persistencia local | Hive + `hive_generator` (adapters generados con `build_runner`); imágenes en la carpeta de documentos de la app |
 | Estado | `provider` (repositorios como `ChangeNotifier`) |
-| IA | Gemini Flash (alias `gemini-flash-latest`) con `google_generative_ai` |
+| IA | Gemini Flash (alias `gemini-flash-latest`, con `gemini-flash-lite-latest` de respaldo) y `google_generative_ai` |
 | Notificaciones | `flutter_local_notifications`, `timezone`, `flutter_timezone` |
 | UI | Material 3, `fl_chart`, `google_fonts` |
 | Archivos | `file_picker`, `image_picker`, `share_plus`, `path_provider`, `archive` (respaldo .zip) |
@@ -183,7 +183,7 @@ La fecha se inyecta en `ProgressRepository` y el azar en `DailyQuizScreen`, así
 - **`google_generative_ai` está deprecado** por Google en favor de Firebase AI Logic. Migrar está pendiente.
 - **Fuente:** Poppins se descarga con `google_fonts` la primera vez que se abre la app. Sin conexión se usa la fuente del sistema.
 - **Mouse:** el arrastre con mouse está cubierto por tests de widgets. En el emulador, `adb shell input mouse` no genera clics (ni siquiera en botones comunes), así que conviene probarlo con un mouse real conectado al teléfono.
-- **Modelo de IA:** se usa el alias `gemini-flash-latest`, que Google va actualizando al Flash vigente. Un nombre fijo (`gemini-2.5-flash`) dejó de estar disponible para claves nuevas y la app instalada no se actualiza sola.
+- **Modelo de IA:** se usa el alias `gemini-flash-latest`, que Google va actualizando al Flash vigente. Un nombre fijo (`gemini-2.5-flash`) dejó de estar disponible para claves nuevas y la app instalada no se actualiza sola. Si Flash está saturado o retirado, se usa `gemini-flash-lite-latest`.
 - **Recordatorios:** se programan para los próximos 14 días cada vez que se abre la app; si no se abre en dos semanas, dejan de llegar.
 - **Cambio de `applicationId`:** pasó de `com.example.quiz_daily` a `io.github.juanespinoza8.quizdaily` (ver "Pasar los datos de la versión anterior").
 - **Configuración y Onboarding** no tienen tests de widgets.
