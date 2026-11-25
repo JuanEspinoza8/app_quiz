@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:provider/provider.dart';
 
@@ -18,6 +20,7 @@ import 'package:quiz_daily/screens/home_screen.dart';
 import 'package:quiz_daily/screens/settings_screen.dart';
 import 'package:quiz_daily/screens/onboarding_screen.dart';
 import 'package:quiz_daily/screens/storage_error_screen.dart';
+import 'package:quiz_daily/services/image_store.dart';
 import 'package:quiz_daily/services/notification_service.dart';
 import 'package:quiz_daily/services/storage_service.dart';
 import 'package:quiz_daily/theme/app_colors.dart';
@@ -26,9 +29,6 @@ import 'package:quiz_daily/widgets/day_rollover_on_resume.dart';
 Future<void> main() async {
   // Aseguramos que el motor gráfico esté listo antes de cualquier lógica
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Inicializamos formato de fechas para gráficos en español
-  await initializeDateFormatting('es', null);
 
   await Hive.initFlutter();
   Hive.registerAdapter(QuestionAdapter());
@@ -55,17 +55,27 @@ Future<void> _start() async {
     Hive.box<DailyStats>(HiveBoxes.stats),
   );
   await progress.ensureInitialized();
+  final images = await FileImageStore.open();
 
   // Reinicia el progreso diario y la racha si cambió el día desde la última vez.
   progress.rolloverIfNewDay();
 
+  // Borra las imágenes que ya no usa ninguna pregunta: las de preguntas
+  // borradas, las reemplazadas y las elegidas en un editor que se canceló.
+  // No hace falta esperarlo para mostrar la app.
+  unawaited(images
+      .deleteUnreferenced(questions.usedImageRefs)
+      .catchError((Object e) {
+    debugPrint('No se pudieron limpiar las imágenes: $e');
+    return 0;
+  }));
+
   try {
     await NotificationService.init();
-
-    // Reprogramamos el recordatorio al iniciar por si el sistema lo canceló
-    // (pasa en algunas capas de Android con ahorro de batería agresivo).
-    final userPrefs = progress.progress;
-    await NotificationService.scheduleDaily(userPrefs.notificationHour, userPrefs.notificationMinute);
+    // Reprogramamos los recordatorios al iniciar por si el sistema los canceló
+    // (pasa en algunas capas de Android con ahorro de batería agresivo), y
+    // cada vez que cambia algo que los afecta.
+    _keepRemindersUpToDate(progress);
   } catch (e, stack) {
     // Un problema con las notificaciones no tiene que impedir usar la app.
     debugPrint('No se pudieron configurar las notificaciones: $e\n$stack');
@@ -75,9 +85,30 @@ Future<void> _start() async {
     providers: [
       ChangeNotifierProvider.value(value: questions),
       ChangeNotifierProvider.value(value: progress),
+      Provider<ImageStore>.value(value: images),
     ],
     child: const DayRolloverOnResume(child: QuizDailyApp()),
   ));
+}
+
+/// Programa los recordatorios ahora y los vuelve a programar cuando cambia
+/// la hora elegida o si hoy ya se cumplió la meta (ese día no se avisa). Así
+/// ninguna pantalla tiene que acordarse de llamar a NotificationService.
+void _keepRemindersUpToDate(ProgressRepository progress) {
+  (bool, int, int)? scheduledFor;
+
+  void reschedule() {
+    final p = progress.progress;
+    final key = (progress.goalMetToday, p.notificationHour, p.notificationMinute);
+    if (key == scheduledFor) return;
+    scheduledFor = key;
+    NotificationService.scheduleReminders(hour: key.$2, minute: key.$3, goalMetToday: key.$1).catchError((Object e) {
+      debugPrint('No se pudieron programar los recordatorios: $e');
+    });
+  }
+
+  reschedule();
+  progress.addListener(reschedule);
 }
 
 class QuizDailyApp extends StatelessWidget {
@@ -94,6 +125,11 @@ class QuizDailyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Quiz Daily',
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+
+      // Calendario, selector de hora y botones de Flutter en español.
+      locale: const Locale('es'),
+      supportedLocales: const [Locale('es')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
 
       // TEMA CLARO
       theme: ThemeData(

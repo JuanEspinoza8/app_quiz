@@ -37,6 +37,14 @@ class UserProgress extends HiveObject {
   @HiveField(10, defaultValue: [])
   List<String> hiddenCategories; // Categorías desactivadas
 
+  /// Último día en que se cumplió la meta. La racha sigue mientras sea hoy o ayer.
+  @HiveField(11)
+  DateTime? lastGoalMetDate;
+
+  /// La racha más larga alcanzada (los logros no se pierden si se corta).
+  @HiveField(12, defaultValue: 0)
+  int bestStreak;
+
   UserProgress({
     required this.dailyGoal,
     required this.answeredToday,
@@ -49,5 +57,7 @@ class UserProgress extends HiveObject {
     this.isDarkMode = false,
     this.userName = '',
     this.hiddenCategories = const [],
+    this.lastGoalMetDate,
+    this.bestStreak = 0,
   });
 }

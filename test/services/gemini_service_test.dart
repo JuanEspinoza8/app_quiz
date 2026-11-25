@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:quiz_daily/services/gemini_service.dart';
 
 Map<String, Object?> question({
@@ -77,12 +80,93 @@ void main() {
     });
   });
 
-  test('sin GEMINI_API_KEY, generateQuestions avisa cómo configurarla', () async {
-    // Los tests corren sin --dart-define, así que la clave está vacía.
+  test('sin GEMINI_API_KEY, generateQuestions avisa que la IA no está disponible', () async {
+    // Los tests corren sin --dart-define, así que la clave está vacía. El
+    // mensaje lo ve quien usa la app: no menciona detalles técnicos.
     expect(GeminiService.isConfigured, isFalse);
     await expectLater(
       GeminiService.generateQuestions('texto', userCategory: 'X'),
-      throwsA(isA<GeminiException>().having((e) => e.message, 'message', contains('GEMINI_API_KEY'))),
+      throwsA(isA<GeminiException>()
+          .having((e) => e.message, 'message', contains('no está disponible'))
+          .having((e) => e.message, 'message', isNot(contains('GEMINI_API_KEY')))),
     );
+  });
+
+  group('GeminiService.friendlyError', () {
+    String messageFor(Object error) => GeminiService.friendlyError(error).message;
+
+    test('traduce los errores de la API y de la conexión a mensajes en español', () {
+      expect(messageFor(ServerException('This model is currently experiencing high demand.')), contains('saturado'));
+      expect(messageFor(ServerException('Resource has been exhausted (e.g. check quota).')), contains('límite de uso'));
+      expect(
+        messageFor(ServerException('This model models/gemini-2.5-flash is no longer available to new users.')),
+        contains('actualizar la app'),
+      );
+      expect(messageFor(InvalidApiKey('API key not valid.')), contains('clave'));
+      expect(messageFor(const SocketException('Failed host lookup')), contains('conexión a internet'));
+      expect(messageFor(Exception('algo raro')), 'No se pudieron generar las preguntas. Probá de nuevo más tarde.');
+    });
+
+    test('ningún mensaje deja pasar el texto técnico en inglés', () {
+      expect(messageFor(ServerException('Internal error encountered.')), isNot(contains('Internal')));
+    });
+  });
+
+  test('usa el alias del modelo Flash vigente y Flash-Lite de respaldo', () {
+    expect(GeminiService.modelName, 'gemini-flash-latest');
+    expect(GeminiService.fallbackModelName, 'gemini-flash-lite-latest');
+  });
+
+  group('GeminiService.tryModels', () {
+    final overloaded = ServerException('This model is currently experiencing high demand. Please try again later.');
+
+    test('si el primero responde, no prueba el segundo', () async {
+      final tried = <String>[];
+      final result = await GeminiService.tryModels(['flash', 'lite'], (m) async {
+        tried.add(m);
+        return 'ok $m';
+      });
+      expect(result, 'ok flash');
+      expect(tried, ['flash']);
+    });
+
+    test('si el primero está saturado, usa el segundo', () async {
+      final tried = <String>[];
+      final result = await GeminiService.tryModels(['flash', 'lite'], (m) async {
+        tried.add(m);
+        if (m == 'flash') throw overloaded;
+        return 'ok $m';
+      });
+      expect(result, 'ok lite');
+      expect(tried, ['flash', 'lite']);
+    });
+
+    test('con un error que no es de saturación no prueba otro modelo', () async {
+      final tried = <String>[];
+      await expectLater(
+        GeminiService.tryModels(['flash', 'lite'], (m) async {
+          tried.add(m);
+          throw InvalidApiKey('API key not valid.');
+        }),
+        throwsA(isA<InvalidApiKey>()),
+      );
+      expect(tried, ['flash']);
+    });
+
+    test('si todos están saturados, lanza el último error (y el mensaje sale en español)', () async {
+      await expectLater(
+        GeminiService.tryModels(['flash', 'lite'], (m) async => throw overloaded),
+        throwsA(same(overloaded)),
+      );
+      expect(GeminiService.friendlyError(overloaded).message, contains('saturado'));
+    });
+
+    test('shouldTryNextModel: saturación y modelo retirado sí; clave, conexión y errores propios no', () {
+      expect(GeminiService.shouldTryNextModel(overloaded), isTrue);
+      expect(GeminiService.shouldTryNextModel(ServerException('models/x is no longer available to new users')), isTrue);
+      expect(GeminiService.shouldTryNextModel(InvalidApiKey('bad')), isFalse);
+      expect(GeminiService.shouldTryNextModel(const SocketException('offline')), isFalse);
+      expect(GeminiService.shouldTryNextModel(const GeminiException('La IA no devolvió respuesta.')), isFalse);
+    });
   });
 }

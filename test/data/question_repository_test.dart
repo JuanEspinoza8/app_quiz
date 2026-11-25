@@ -93,4 +93,32 @@ void main() {
 
     expect(notifications, greaterThan(0));
   });
+
+  test('canonicalCategory reutiliza la materia existente aunque cambien mayúsculas o espacios', () async {
+    await repo.addAll([buildQuestion('1', category: 'Historia'), buildQuestion('2', category: 'Física')]);
+
+    expect(repo.canonicalCategory('historia'), 'Historia');
+    expect(repo.canonicalCategory('  FÍSICA '), 'Física');
+    expect(repo.canonicalCategory(' Química '), 'Química');
+  });
+
+  test('usedImageRefs junta la imagen del enunciado y las de relacionar', () async {
+    await repo.addAll([
+      buildQuestion('1')..imagePath = 'foto.png',
+      Question(
+        id: '2',
+        type: QuestionType.matching,
+        questionText: 'Uní',
+        options: const [],
+        correctAnswerIndex: 0,
+        category: 'Números',
+        createdAt: DateTime(2026),
+        matchLeft: ['1', '2'],
+        matchImages: ['uno.png', 'dos.png'],
+      ),
+      buildQuestion('3'),
+    ]);
+
+    expect(repo.usedImageRefs, {'foto.png', 'uno.png', 'dos.png'});
+  });
 }

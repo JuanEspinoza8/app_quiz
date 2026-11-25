@@ -37,6 +37,41 @@ void main() {
     expect(repos.questions.all.map((q) => q.id), ['1', '2', '3']);
   });
 
+  testWidgets('las preguntas de relacionar llevan su etiqueta y se encuentran por sus elementos', (tester) async {
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(),
+      questions: [
+        testQuestion('1'),
+        testMatchingQuestion('m1', left: ['Perro', 'Gato', 'Vaca']),
+      ],
+    );
+
+    await tester.pumpWidget(repos.wrap(const QuestionsListScreen()));
+    expect(find.text('Relacionar'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'gato');
+    await tester.pump();
+
+    expect(find.text('Relacionar m1'), findsOneWidget);
+    expect(find.text('Pregunta 1'), findsNothing);
+  });
+
+  testWidgets('el buscador también busca en las opciones', (tester) async {
+    final repos = await createTestRepositories(
+      tester,
+      progress: progress(),
+      questions: [testQuestion('1'), testQuestion('2')],
+    );
+
+    await tester.pumpWidget(repos.wrap(const QuestionsListScreen()));
+    await tester.enterText(find.byType(TextField), 'opción c 2');
+    await tester.pump();
+
+    expect(find.text('Pregunta 2'), findsOneWidget);
+    expect(find.text('Pregunta 1'), findsNothing);
+  });
+
   testWidgets('si se borra la última pregunta de la materia filtrada, vuelve a "Todas"', (tester) async {
     final repos = await createTestRepositories(
       tester,

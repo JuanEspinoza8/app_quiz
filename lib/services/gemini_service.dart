@@ -46,6 +46,45 @@ class GeminiService {
 
   static bool get isConfigured => _apiKey.isNotEmpty;
 
+  /// Alias que siempre apunta al modelo Flash vigente. Un nombre fijo
+  /// (gemini-2.5-flash) dejó de estar disponible para claves nuevas y la app
+  /// instalada no se puede actualizar sola: con el alias sigue funcionando.
+  static const modelName = 'gemini-flash-latest';
+
+  /// Se usa si [modelName] está saturado o ya no existe. Es más liviano y
+  /// suele responder cuando Flash devuelve "high demand" (503).
+  static const fallbackModelName = 'gemini-flash-lite-latest';
+
+  /// Si con este error conviene probar el modelo siguiente: saturación o
+  /// modelo retirado. Con una clave inválida o sin conexión no tiene sentido.
+  static bool shouldTryNextModel(Object error) {
+    if (error is GeminiException || error is InvalidApiKey || error is UnsupportedUserLocation) return false;
+    if (error is SocketException || error is http.ClientException) return false;
+    final detail = (error is GenerativeAIException ? error.message : '$error').toLowerCase();
+    return detail.contains('demand') ||
+        detail.contains('overloaded') ||
+        detail.contains('unavailable') ||
+        detail.contains('no longer available') ||
+        detail.contains('not found');
+  }
+
+  /// Llama a [attempt] con cada modelo, en orden, hasta que uno responda. Si
+  /// el error no justifica probar otro (ver [shouldTryNextModel]), lo deja
+  /// pasar enseguida; si fallan todos, lanza el último error.
+  static Future<T> tryModels<T>(List<String> models, Future<T> Function(String model) attempt) async {
+    Object? lastError;
+    for (final model in models) {
+      try {
+        return await attempt(model);
+      } catch (e) {
+        if (!shouldTryNextModel(e)) rethrow;
+        debugPrint('El modelo $model no respondió ($e); se prueba el siguiente.');
+        lastError = e;
+      }
+    }
+    throw lastError ?? StateError('No hay modelos para probar.');
+  }
+
   static http.Client? _buildHttpClient() {
     if (_androidCertSha1.isEmpty || !Platform.isAndroid) return null;
     // Google espera la huella en hexadecimal, sin los ':'.
@@ -61,23 +100,11 @@ class GeminiService {
         String? mimeType,
       }) async {
 
+    // Lo ve quien usa la app: sin detalles técnicos. Cómo compilar con la
+    // clave (GEMINI_API_KEY en env.json) está en el README.
     if (!isConfigured) {
-      throw const GeminiException(
-        'Falta GEMINI_API_KEY. Ejecutá la app con '
-        '--dart-define-from-file=env.json (ver README).',
-      );
+      throw const GeminiException('La generación con IA no está disponible en esta versión de la app.');
     }
-
-    final model = GenerativeModel(
-      model: 'gemini-2.5-flash',
-      apiKey: _apiKey,
-      httpClient: _buildHttpClient(),
-      // Pedimos JSON con un esquema fijo en lugar de limpiar texto libre.
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-        responseSchema: _responseSchema,
-      ),
-    );
 
     final avoidRule = (avoidQuestions != null && avoidQuestions.isNotEmpty)
         ? '- NO generes preguntas similares a estas: ${avoidQuestions.join(', ')}'
@@ -106,16 +133,56 @@ class GeminiService {
     }
 
     try {
-      final response = await model.generateContent([Content.multi(parts)]);
-      final responseText = response.text;
+      final responseText = await tryModels([modelName, fallbackModelName], (name) async {
+        final model = GenerativeModel(
+          model: name,
+          apiKey: _apiKey,
+          httpClient: _buildHttpClient(),
+          // Pedimos JSON con un esquema fijo en lugar de limpiar texto libre.
+          generationConfig: GenerationConfig(
+            responseMimeType: 'application/json',
+            responseSchema: _responseSchema,
+          ),
+        );
+        final response = await model.generateContent([Content.multi(parts)]);
+        return response.text;
+      });
       if (responseText == null || responseText.trim().isEmpty) {
         throw const GeminiException('La IA no devolvió respuesta. Probá de nuevo.');
       }
       return parseQuestions(responseText, category: userCategory);
-    } catch (e) {
-      debugPrint('Error generando preguntas: $e');
+    } on GeminiException {
       rethrow;
+    } catch (e) {
+      // El detalle técnico (en inglés) queda en el log; al usuario le llega
+      // un mensaje en español.
+      debugPrint('Error generando preguntas: $e');
+      throw friendlyError(e);
     }
+  }
+
+  /// Traduce un error de la conexión o de la API a un mensaje para el usuario.
+  static GeminiException friendlyError(Object error) {
+    if (error is SocketException || error is http.ClientException) {
+      return const GeminiException('No hay conexión a internet. Revisá la conexión y probá de nuevo.');
+    }
+    if (error is InvalidApiKey) {
+      return const GeminiException('La clave de la IA no es válida. Avisale a quien te pasó la app.');
+    }
+    if (error is UnsupportedUserLocation) {
+      return const GeminiException('La generación con IA no está disponible en tu región.');
+    }
+    final detail = (error is GenerativeAIException ? error.message : '$error').toLowerCase();
+    if (detail.contains('demand') || detail.contains('overloaded') || detail.contains('unavailable')) {
+      return const GeminiException('El servicio de IA está saturado en este momento. Probá de nuevo en unos minutos.');
+    }
+    if (detail.contains('quota') || detail.contains('resource_exhausted') || detail.contains('rate limit')) {
+      return const GeminiException('Se alcanzó el límite de uso de la IA. Probá de nuevo más tarde.');
+    }
+    if (detail.contains('no longer available') || detail.contains('not found')) {
+      return const GeminiException('El modelo de IA ya no está disponible. Hace falta actualizar la app.');
+    }
+    return const GeminiException('No se pudieron generar las preguntas. Probá de nuevo más tarde.');
   }
 
   static final _responseSchema = Schema.array(

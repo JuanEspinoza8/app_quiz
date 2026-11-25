@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../data/progress_repository.dart';
@@ -33,22 +34,25 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
     super.dispose();
   }
 
+  DateTime get _today => DateUtils.dateOnly(DateTime.now());
+
+  bool get _dateExpired => _selectedDate != null && DateUtils.dateOnly(_selectedDate!).isBefore(_today);
+
+  /// El modo examen está activo con una materia elegida y sin fecha vencida.
+  bool get _examActive => _selectedCategory != null && !_dateExpired;
+
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final today = _today;
+    // Si la fecha guardada ya pasó, el calendario abre en una fecha futura:
+    // showDatePicker no acepta una fecha inicial anterior a firstDate.
+    final selected = _selectedDate;
+    final initial = selected != null && !_dateExpired ? DateUtils.dateOnly(selected) : today.add(const Duration(days: 7));
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? now.add(const Duration(days: 7)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
-      builder: (context, child) {
-        // Aseguramos que el DatePicker use el tema correcto o forzamos uno compatible
-        return Theme(
-          data: Theme.of(context).brightness == Brightness.dark
-              ? ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: AppColors.primary))
-              : ThemeData.light().copyWith(colorScheme: const ColorScheme.light(primary: AppColors.primary)),
-          child: child!,
-        );
-      },
+      initialDate: initial,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365)),
+      helpText: 'FECHA DEL EXAMEN',
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -56,8 +60,10 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
   }
 
   void _saveGoal() {
-    context.read<ProgressRepository>().updateGoals(
-      dailyGoal: int.tryParse(_goalController.text.trim()) ?? 3,
+    final repo = context.read<ProgressRepository>();
+    final typed = int.tryParse(_goalController.text.trim());
+    repo.updateGoals(
+      dailyGoal: typed ?? repo.progress.dailyGoal,
       targetCategory: _selectedCategory,
       targetDate: _selectedDate,
     );
@@ -102,28 +108,29 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                   const SizedBox(height: 16),
                   Text("Tu Meta Diaria", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text("Preguntas a responder cada día", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                  Text(
+                    "Preguntas a responder cada día (de 1 a $kMaxDailyGoal)",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                  ),
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 100,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                        ),
-                        child: TextField(
-                          controller: _goalController,
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.primary),
-                          decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                        ),
-                      ),
-                    ],
+                  Container(
+                    width: 100,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                    ),
+                    child: TextField(
+                      key: const ValueKey('daily-goal'),
+                      controller: _goalController,
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
+                      style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                    ),
                   ),
                 ],
               ),
@@ -132,18 +139,22 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
             const SizedBox(height: 30),
 
             Text("Modo Examen 🎓", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+            const SizedBox(height: 4),
+            Text(
+              "Mientras esté activo, el quiz usa solo preguntas de esa materia. "
+              "Con fecha, se desactiva solo cuando pasa el examen.",
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+            ),
             const SizedBox(height: 12),
 
             // TARJETA DE MODO EXAMEN
             Container(
+              key: const ValueKey('exam-card'),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                    color: (_selectedCategory != null) ? AppColors.primary : Colors.transparent,
-                    width: 2
-                ),
+                border: Border.all(color: _examActive ? AppColors.primary : Colors.transparent, width: 2),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 5))],
               ),
               child: Column(
@@ -151,7 +162,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                 children: [
                   DropdownButtonFormField<String>(
                     decoration: InputDecoration(
-                      labelText: "Materia a priorizar",
+                      labelText: "Materia del examen",
                       labelStyle: GoogleFonts.poppins(color: Colors.grey),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       filled: true,
@@ -173,6 +184,7 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                   const SizedBox(height: 16),
 
                   InkWell(
+                    key: const ValueKey('exam-date'),
                     onTap: _pickDate,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
@@ -185,19 +197,31 @@ class _DailyGoalScreenState extends State<DailyGoalScreen> {
                         children: [
                           const Icon(Icons.calendar_today_rounded, color: AppColors.teal),
                           const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Fecha del parcial", style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
-                              const SizedBox(height: 4),
-                              Text(
-                                _selectedDate != null
-                                    ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}"
-                                    : "Seleccionar fecha",
-                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Fecha del examen (opcional)", style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _selectedDate != null
+                                      ? "${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}${_dateExpired ? ' · Vencido' : ''}"
+                                      : "Sin fecha límite",
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: _dateExpired ? Colors.redAccent : null,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          if (_selectedDate != null)
+                            IconButton(
+                              tooltip: 'Quitar fecha',
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => setState(() => _selectedDate = null),
+                            ),
                         ],
                       ),
                     ),

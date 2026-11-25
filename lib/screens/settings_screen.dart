@@ -8,9 +8,20 @@ import '../data/progress_repository.dart';
 import '../data/question_repository.dart';
 import '../models/user_progress.dart';
 import '../theme/app_colors.dart';
-import '../services/notification_service.dart';
 import '../services/data_sync_service.dart';
+import '../services/image_store.dart';
 import '../services/import_service.dart';
+
+/// Builder del selector de hora del recordatorio: siempre en 24 h.
+///
+/// En español el reloj se muestra de 0 a 23, pero al escribir la hora con el
+/// teclado Flutter la interpreta según la configuración del teléfono: con
+/// formato de 12 h, "04" con la hora inicial en PM se guardaba como 16.
+/// Forzar 24 h hace que se muestre y se lea igual.
+Widget reminderTimePickerBuilder(BuildContext context, Widget? child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+      child: child!,
+    );
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,46 +35,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
   QuestionRepository get _questions => context.read<QuestionRepository>();
 
   Future<void> _pickTime(UserProgress p) async {
+    // Usa el tema de la app: antes se forzaba el claro también en modo oscuro.
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: p.notificationHour, minute: p.notificationMinute),
-      helpText: "ELIGE LA HORA DEL AVISO",
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primary),
-          ),
-          child: child!,
-        );
-      },
+      helpText: "ELEGÍ LA HORA DEL AVISO",
+      builder: reminderTimePickerBuilder,
     );
 
     if (picked != null && mounted) {
+      // main.dart reprograma los recordatorios cuando cambia la hora.
       await _progress.setReminderTime(picked.hour, picked.minute);
-      await NotificationService.scheduleDaily(picked.hour, picked.minute);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Notificación ajustada a las ${picked.format(context)} 📅')));
     }
   }
 
+  ImageStore get _images => context.read<ImageStore>();
+
   Future<void> _backupData() async {
-    final path = await DataSyncService.exportFullBackup(questions: _questions, progress: _progress);
-    await Share.shareXFiles([XFile(path)], text: "Respaldo Quiz Daily 🔒");
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final path = await DataSyncService.exportFullBackup(questions: _questions, progress: _progress, images: _images);
+      await Share.shareXFiles([XFile(path)], text: "Respaldo Quiz Daily 🔒");
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo crear el respaldo: $e')));
+    }
   }
 
   Future<void> _restoreData() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
-    if (result == null) return;
-    if (!mounted) return;
-    final file = File(result.files.single.path!);
+    // FileType.any: muchas apps comparten el .json como "archivo genérico" y
+    // con un filtro por extensión no se podría elegir. El contenido se
+    // revisa al importar.
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+
+    final mode = await _askImportMode();
+    if (mode == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
     String msg;
     try {
-      msg = await ImportService.importBackup(file, questions: _questions, progress: _progress);
+      final imported = await ImportService.importBackup(
+        File(path),
+        questions: _questions,
+        progress: _progress,
+        images: _images,
+        mode: mode,
+      );
+      msg = imported.message;
     } catch (e) {
       msg = 'No se pudo leer el respaldo: $e';
     }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    messenger.showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 6)));
+  }
+
+  Future<ImportMode?> _askImportMode() {
+    return showDialog<ImportMode>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restaurar respaldo'),
+        content: const Text(
+          'Las preguntas del respaldo se agregan a las que ya tenés (las repetidas se saltean).\n\n'
+          '"Todo" además reemplaza tu meta, tu racha, la hora del recordatorio y las estadísticas por las del respaldo.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, ImportMode.all), child: const Text('Todo')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ImportMode.questionsOnly), child: const Text('Solo preguntas')),
+        ],
+      ),
+    );
   }
 
   void _showCategoryFilter(UserProgress p) {
@@ -165,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildCard(context, [
             _buildTile(
               title: "Crear Respaldo",
-              subtitle: "Guarda todo tu progreso",
+              subtitle: "Preguntas, imágenes y progreso en un .zip",
               icon: Icons.cloud_upload_rounded,
               color: AppColors.teal,
               onTap: _backupData,
@@ -173,7 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 1, indent: 60),
             _buildTile(
               title: "Restaurar Copia",
-              subtitle: "Recupera tus datos",
+              subtitle: "Desde un .zip (o el .json de la versión anterior)",
               icon: Icons.cloud_download_rounded,
               color: AppColors.primary,
               onTap: _restoreData,
