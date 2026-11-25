@@ -12,6 +12,17 @@ import '../services/data_sync_service.dart';
 import '../services/image_store.dart';
 import '../services/import_service.dart';
 
+/// Builder del selector de hora del recordatorio: siempre en 24 h.
+///
+/// En español el reloj se muestra de 0 a 23, pero al escribir la hora con el
+/// teclado Flutter la interpreta según la configuración del teléfono: con
+/// formato de 12 h, "04" con la hora inicial en PM se guardaba como 16.
+/// Forzar 24 h hace que se muestre y se lea igual.
+Widget reminderTimePickerBuilder(BuildContext context, Widget? child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+      child: child!,
+    );
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -29,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       initialTime: TimeOfDay(hour: p.notificationHour, minute: p.notificationMinute),
       helpText: "ELEGÍ LA HORA DEL AVISO",
+      builder: reminderTimePickerBuilder,
     );
 
     if (picked != null && mounted) {

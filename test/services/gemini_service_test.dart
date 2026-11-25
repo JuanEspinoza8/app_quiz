@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:quiz_daily/services/gemini_service.dart';
 
 Map<String, Object?> question({
@@ -87,5 +90,29 @@ void main() {
           .having((e) => e.message, 'message', contains('no está disponible'))
           .having((e) => e.message, 'message', isNot(contains('GEMINI_API_KEY')))),
     );
+  });
+
+  group('GeminiService.friendlyError', () {
+    String messageFor(Object error) => GeminiService.friendlyError(error).message;
+
+    test('traduce los errores de la API y de la conexión a mensajes en español', () {
+      expect(messageFor(ServerException('This model is currently experiencing high demand.')), contains('saturado'));
+      expect(messageFor(ServerException('Resource has been exhausted (e.g. check quota).')), contains('límite de uso'));
+      expect(
+        messageFor(ServerException('This model models/gemini-2.5-flash is no longer available to new users.')),
+        contains('actualizar la app'),
+      );
+      expect(messageFor(InvalidApiKey('API key not valid.')), contains('clave'));
+      expect(messageFor(const SocketException('Failed host lookup')), contains('conexión a internet'));
+      expect(messageFor(Exception('algo raro')), 'No se pudieron generar las preguntas. Probá de nuevo más tarde.');
+    });
+
+    test('ningún mensaje deja pasar el texto técnico en inglés', () {
+      expect(messageFor(ServerException('Internal error encountered.')), isNot(contains('Internal')));
+    });
+  });
+
+  test('usa el alias del modelo Flash vigente', () {
+    expect(GeminiService.modelName, 'gemini-flash-latest');
   });
 }

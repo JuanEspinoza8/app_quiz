@@ -46,6 +46,11 @@ class GeminiService {
 
   static bool get isConfigured => _apiKey.isNotEmpty;
 
+  /// Alias que siempre apunta al modelo Flash vigente. Un nombre fijo
+  /// (gemini-2.5-flash) dejó de estar disponible para claves nuevas y la app
+  /// instalada no se puede actualizar sola: con el alias sigue funcionando.
+  static const modelName = 'gemini-flash-latest';
+
   static http.Client? _buildHttpClient() {
     if (_androidCertSha1.isEmpty || !Platform.isAndroid) return null;
     // Google espera la huella en hexadecimal, sin los ':'.
@@ -68,7 +73,7 @@ class GeminiService {
     }
 
     final model = GenerativeModel(
-      model: 'gemini-2.5-flash',
+      model: modelName,
       apiKey: _apiKey,
       httpClient: _buildHttpClient(),
       // Pedimos JSON con un esquema fijo en lugar de limpiar texto libre.
@@ -111,10 +116,38 @@ class GeminiService {
         throw const GeminiException('La IA no devolvió respuesta. Probá de nuevo.');
       }
       return parseQuestions(responseText, category: userCategory);
-    } catch (e) {
-      debugPrint('Error generando preguntas: $e');
+    } on GeminiException {
       rethrow;
+    } catch (e) {
+      // El detalle técnico (en inglés) queda en el log; al usuario le llega
+      // un mensaje en español.
+      debugPrint('Error generando preguntas: $e');
+      throw friendlyError(e);
     }
+  }
+
+  /// Traduce un error de la conexión o de la API a un mensaje para el usuario.
+  static GeminiException friendlyError(Object error) {
+    if (error is SocketException || error is http.ClientException) {
+      return const GeminiException('No hay conexión a internet. Revisá la conexión y probá de nuevo.');
+    }
+    if (error is InvalidApiKey) {
+      return const GeminiException('La clave de la IA no es válida. Avisale a quien te pasó la app.');
+    }
+    if (error is UnsupportedUserLocation) {
+      return const GeminiException('La generación con IA no está disponible en tu región.');
+    }
+    final detail = (error is GenerativeAIException ? error.message : '$error').toLowerCase();
+    if (detail.contains('demand') || detail.contains('overloaded') || detail.contains('unavailable')) {
+      return const GeminiException('El servicio de IA está saturado en este momento. Probá de nuevo en unos minutos.');
+    }
+    if (detail.contains('quota') || detail.contains('resource_exhausted') || detail.contains('rate limit')) {
+      return const GeminiException('Se alcanzó el límite de uso de la IA. Probá de nuevo más tarde.');
+    }
+    if (detail.contains('no longer available') || detail.contains('not found')) {
+      return const GeminiException('El modelo de IA ya no está disponible. Hace falta actualizar la app.');
+    }
+    return const GeminiException('No se pudieron generar las preguntas. Probá de nuevo más tarde.');
   }
 
   static final _responseSchema = Schema.array(
